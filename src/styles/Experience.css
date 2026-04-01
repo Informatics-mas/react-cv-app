@@ -1,0 +1,103 @@
+/* Conteneur principal de la section */
+.section-container {
+  margin-bottom: 2rem;
+  padding: 20px;
+  background-color: #131b2e;
+  border-radius: 8px;
+}
+
+.section-container h3 {
+  color: #F8FAFC;
+  border-bottom: 2px solid #F8FAFC;
+  padding-bottom: 8px;
+  margin-bottom: 20px;
+  text-transform: uppercase;
+  font-size: 1.1rem;
+}
+
+/* Groupe pour chaque poste (quand on en a plusieurs) */
+.form-item-group {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 15px;
+  margin-bottom: 20px;
+  background-color: #131b2e;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  transition: border-color 0.2s;
+}
+
+.form-item-group:hover {
+  border-color: #3B82F6;
+}
+
+/* Style des inputs */
+.form-item-group input, 
+.form-item-group textarea {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #CBD5E1;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+}
+
+.form-item-group input:focus, 
+.form-item-group textarea:focus {
+  outline: none;
+  border: 2px solid #3B82F6;
+  background-color: #CBD5E1;
+}
+
+/* Groupe pour les dates (côte à côte) */
+.date-group {
+  display: flex;
+  gap: 10px;
+}
+
+.date-group input {
+  flex: 1;
+}
+
+/* Bouton Supprimer (Rouge) */
+.delete-btn {
+  align-self: flex-end;
+  background-color: #F87171;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.delete-btn:hover {
+  background-color: #F87171;
+}
+
+/* Bouton Ajouter (Bleu) */
+.add-btn {
+  width: 100%;
+  background-color: #6366F1;
+  color: white;
+  border: none;
+  padding: 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 1rem;
+  transition: transform 0.1s, background 0.2s;
+}
+
+.add-btn:hover {
+  background-color: #6366F1;
+  transform: translateY(-1px);
+}
+
+.add-btn:active {
+  transform: translateY(0);
+}

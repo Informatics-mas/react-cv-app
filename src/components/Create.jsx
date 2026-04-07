@@ -8,33 +8,55 @@ import Hobbi from './hobbi'; // Nouveau composant pour les loisirs
 import Langue from './langue'; // Nouveau composant pour les langues
 import Skills from './skils'; // Nouveau composant pour les compétences
 import ModernTemplate from './models/ModernTemplate';
+import DesignerTemplate from './models/DesignerTemplate';
 import ClassicTemplate from './models/ClassicTemplate';
-import TechTemplate from './models/TechTemplate'; // Nouveau template "Tech"
-import { ArrowLeft, User, GraduationCap, Download, Briefcase, Languages, Heart, Zap, Eye, FileText } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import TechTemplate from './models/TechTemplate';
+import MetroTemplate from './models/MetroTemplate';
+import { 
+  ArrowLeft, ArrowRight, User, GraduationCap, Download, Briefcase, 
+  Languages, Heart, Zap, Eye, FileText 
+} from 'lucide-react';
+import { useLocation, Link } from 'react-router-dom';
 
 function Create() {
+  const location = useLocation();
   const componentRef = useRef(null); 
 
   const [cvData, setCvData] = useState(() => {
-    const saved = localStorage.getItem('cv_data_pro');
-    if (saved) {
-      return JSON.parse(saved);
-    }
-    // Données par défaut si vide
-    return {
-      general: { img: '', title: '', name: '', email: '', phone: '', summary: '' },
-      education: [],
-      experience: [],
-      hobbi: [],
-      langue: [],
-      skills: [],
-      theme: {
-        sidebarBg: '#1e293b',
-        accentColor: '#3b82f6',
-        template: 'modern'
-      }
-    };
+     // 1. On récupère le template depuis l'URL (?template=tech)
+     const queryParams = new URLSearchParams(location.search);
+     const templateFromUrl = queryParams.get('template');
+    
+     // 2. On regarde s'il y a des données sauvegardées
+     const saved = localStorage.getItem('cv_data_pro');
+     
+     if (saved) {
+       const parsedData = JSON.parse(saved);
+        
+       // FORCE l'utilisation du template de l'URL s'il est présent
+       if (templateFromUrl) {
+         return {
+           ...parsedData,
+           theme: { ...parsedData.theme, template: templateFromUrl }
+         };
+       }
+       return parsedData;
+     }
+     
+     // 3. Sinon, on initialise tout à neuf
+     return {
+       general: { img: '', title: '', name: '', email: '', phone: '', summary: '' },
+       education: [],
+       experience: [],
+       hobbi: [],
+       langue: [],
+       skills: [],
+       theme: {
+         sidebarBg: '#1e293b',
+         accentColor: '#3b82f6',
+         template: templateFromUrl || 'modern' // 'modern' par défaut
+       }
+     };
   });
 
   // 2. Sauvegarde automatique : à chaque fois que cvData change
@@ -141,7 +163,7 @@ function Create() {
         {/* --- GESTION DU THÈME --- */}
         <section className="bg-slate-800/40 p-4 rounded-xl border border-slate-700 mb-6">
           <h2 className="text-white font-bold text-xs uppercase tracking-widest mb-4">Personnalisation du style</h2>
-          <div className="flex gap-6">
+          <div className="flex gap-6 justify-center items-center">
             <div className="flex flex-col gap-2">
               <label className="text-slate-400 text-[10px] uppercase">Sidebar</label>
               <input 
@@ -160,47 +182,15 @@ function Create() {
                 className="w-10 h-10 bg-transparent border-none cursor-pointer"
               />
             </div>
+
+             <div className="flex flex-col gap-2">
+            <Link to="/Models"
+              className="flex items-center justify-center gap-2 w-full bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border border-slate-600 hover:border-blue-500/50"
+            >
+              Changer de modèle <ArrowRight size={20} />
+            </Link>
           </div>
-        </section>
 
-        <section className="bg-slate-800/40 p-4 rounded-xl border border-slate-700 mb-6">
-          <h2 className="text-white font-bold text-xs uppercase tracking-widest mb-4">Modèle de CV</h2>
-          <div className="grid grid-cols-2 gap-3">
-            <button 
-              onClick={() => setCvData({ ...cvData, theme: { ...cvData.theme, template: 'modern' } })}
-              className={`p-3 rounded-lg border-2 transition-all text-center ${
-                cvData.theme.template === 'modern' 
-                ? 'border-blue-500 bg-blue-500/10 text-white' 
-                : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500'
-              }`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-tighter">Moderne</div>
-              <div className="text-[8px] opacity-60">Avec Sidebar</div>
-            </button>
-            
-            <button 
-              onClick={() => setCvData({ ...cvData, theme: { ...cvData.theme, template: 'classic' } })}
-              className={`p-3 rounded-lg border-2 transition-all text-center ${
-                cvData.theme.template === 'classic' 
-                ? 'border-blue-500 bg-blue-500/10 text-white' 
-                : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500'
-              }`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-tighter">Classique</div>
-              <div className="text-[8px] opacity-60">Minimaliste</div>
-            </button>
-
-            <button 
-              onClick={() => setCvData({ ...cvData, theme: { ...cvData.theme, template: 'tech' } })}
-              className={`p-3 rounded-lg border-2 transition-all text-center ${
-                cvData.theme.template === 'tech' 
-                ? 'border-blue-500 bg-blue-500/10 text-white' 
-                : 'border-slate-700 bg-slate-800 text-slate-400 hover:border-slate-500'
-              }`}
-            >
-              <div className="text-[10px] font-bold uppercase tracking-tighter">Tech</div>
-              <div className="text-[8px] opacity-60">Avec Sidebar</div>
-            </button>
           </div>
         </section>
 
@@ -308,10 +298,10 @@ function Create() {
   
           {/* Choix du modèle selon le state */}
           {cvData.theme.template === 'modern' && <ModernTemplate data={cvData} />}
-
           {cvData.theme.template === 'classic' && <ClassicTemplate data={cvData} />}
-
           {cvData.theme.template === 'tech' && <TechTemplate data={cvData} />}
+          {cvData.theme.template === 'metro' && <MetroTemplate data={cvData} />}
+          {cvData.theme.template === 'designer' && <DesignerTemplate data={cvData} />}
         </div>
       </div>
 

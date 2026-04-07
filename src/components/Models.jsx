@@ -5,71 +5,79 @@ import {
   Sparkles, 
   LayoutTemplate, 
   Heart, 
-  Mail
+  Mail,
+  ArrowLeft
 } from 'lucide-react';
 
-// Si tu veux vraiment GitHub, essaie "Github" ou "GitHub". 
-// Si ça plante encore, on utilisera du texte simple pour l'instant.
 
-function Home() {
+function Models() {
+
+  const CV_MODELS = [
+    { id: 'modern', name: 'Moderne', desc: 'Design épuré avec sidebar colorée', color: 'bg-blue-500' },
+    { id: 'classic', name: 'Classique', desc: 'Minimaliste et professionnel', color: 'bg-slate-500' },
+    { id: 'tech', name: 'Tech', desc: 'Idéal pour les profils IT et créatifs', color: 'bg-emerald-500' },
+    { id: 'metro', name: 'Metro', desc: 'Design moderne et épuré', color: 'bg-violet-500' },
+    { id: 'designer', name: 'Designer', desc: 'Design artistique et créatif', color: 'bg-pink-500' },
+  ];
+
   return (
     <div className="min-h-screen bg-[#131b2e] text-white font-sans flex flex-col">
-      {/* Navigation Simple */}
+      {/* Navigation */}
       <nav className="w-full border-b border-slate-800/50 bg-[#131b2e]/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex items-center p-6 max-w-7xl mx-auto">
+        <div className="flex justify-between items-center p-6 max-w-7xl mx-auto">
+          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
             <div className="bg-blue-600 p-2 rounded-lg">
               <FileText size={24} />
             </div>
             <span className="text-xl font-bold tracking-tight">CV.Craft</span>
+          </Link>
+          
+          <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium">
+            <ArrowLeft size={16} />
+            Retour à l'accueil
+          </Link>
         </div>
       </nav>
 
-      {/* Hero Section */}
-      <main className="max-w-7xl mx-auto px-6 pt-16 pb-24 grid lg:grid-cols-2 gap-12 items-center flex-1">
-        
-        <div className="space-y-8 text-center lg:text-left">
-          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-4 py-1.5 rounded-full">
-            <Sparkles size={16} className="text-blue-400" />
-            <span className="text-sm font-medium text-blue-400">Le créateur de CV pour tous</span>
-          </div>
-          
-          <h1 className="text-5xl lg:text-7xl font-extrabold leading-tight">
-            Décrochez votre <br />
-            <span className="text-blue-500">Job de Rêve</span> en 5 minutes.
-          </h1>
-          
-          <p className="text-slate-400 text-lg max-w-xl mx-auto lg:mx-0">
-            Créez un CV professionnel, moderne et optimisé pour les recruteurs. 
-            Pas de design à gérer, on s'occupe de tout pour vous.
-          </p>
+      {/* Hero Models */}
+      <header className="pt-16 pb-8 text-center px-6">
+        <h1 className="text-4xl md:text-5xl font-extrabold mb-4">
+          Nos <span className="text-blue-500">Modèles</span>
+        </h1>
+        <p className="text-slate-400 max-w-2xl mx-auto text-lg">
+          Sélectionnez un design conçu pour passer les systèmes de filtrage (ATS) et capter l'attention des recruteurs.
+        </p>
+      </header>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-4">
-            <Link to="/Create"
-              className="bg-blue-600 hover:bg-blue-500 px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-600/20 transition-all transform hover:-translate-y-1 text-center">
-              Créer mon CV maintenant
-            </Link>
-          </div>
-        </div>
-      </main>
+      {/* Models Grid */}
+      <section className="py-12 max-w-7xl mx-auto px-6 flex-1">
+        <div className="grid md:grid-cols-5 gap-4">
+          {CV_MODELS.map((model) => (
+            <div key={model.id} className="bg-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden hover:border-blue-500 transition-all group flex flex-col h-full">
+              {/* Simulation du visuel du CV */}
+              <div className={`aspect-[3/4] ${model.color} opacity-20 group-hover:opacity-30 transition-opacity flex items-center justify-center relative`}>
+                <LayoutTemplate size={60} className="text-white relative z-10" />
+                {/* Petit badge "Populaire" sur le moderne par exemple */}
+                {model.id === 'modern' && (
+                  <span className="absolute top-4 right-4 bg-blue-600 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tighter opacity-100">
+                    Populaire
+                  </span>
+                )}
+              </div>
 
-      {/* Features */}
-      <section className="bg-slate-900/50 py-20 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-3 gap-12">
-          <FeatureCard 
-            icon={<LayoutTemplate className="text-blue-500" />}
-            title="Design Pro"
-            desc="Des templates testés par des recruteurs pour maximiser vos chances."
-          />
-          <FeatureCard 
-            icon={<Sparkles className="text-purple-500" />}
-            title="Export Rapide"
-            desc="Téléchargez votre CV en PDF haute qualité en un clic."
-          />
-          <FeatureCard 
-            icon={<FileText className="text-emerald-500" />}
-            title="Responsive"
-            desc="Modifiez votre CV sur mobile, tablette ou ordinateur."
-          />
+              <div className="p-6 flex flex-col flex-1">
+                <h3 className="text-xl font-bold mb-2">{model.name}</h3>
+                <p className="text-slate-400 text-sm mb-8 flex-1">{model.desc}</p>
+
+                <Link 
+                  to={`/Create?template=${model.id}`}
+                  className="block w-full text-center bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-900/20"
+                >
+                  Choisir ce modèle
+                </Link>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
@@ -136,4 +144,4 @@ const FeatureCard = ({ icon, title, desc }) => (
   </div>
 );
 
-export default Home;
+export default Models;

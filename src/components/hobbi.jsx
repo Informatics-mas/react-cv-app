@@ -30,3 +30,6 @@ function Hobbi({ data, onAdd, onUpdate, onRemove }) {
 }
 
 export default Hobbi;
+
+
+

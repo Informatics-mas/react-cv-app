@@ -16,8 +16,9 @@ function Models() {
     { id: 'modern', name: 'Moderne', desc: 'Design épuré avec sidebar colorée', color: 'bg-blue-500' },
     { id: 'classic', name: 'Classique', desc: 'Minimaliste et professionnel', color: 'bg-slate-500' },
     { id: 'tech', name: 'Tech', desc: 'Idéal pour les profils IT et créatifs', color: 'bg-emerald-500' },
-    { id: 'metro', name: 'Metro', desc: 'Design moderne et épuré', color: 'bg-violet-500' },
+    { id: 'benjamin', name: 'Benjamin', desc: 'Design moderne et épuré', color: 'bg-violet-500' },
     { id: 'designer', name: 'Designer', desc: 'Design artistique et créatif', color: 'bg-pink-500' },
+    { id: 'futuristic', name: 'Futuriste', desc: 'Design innovant et moderne', color: 'bg-purple-500' },
   ];
 
   return (

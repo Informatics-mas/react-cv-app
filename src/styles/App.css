@@ -1,56 +1,9 @@
 @import "tailwindcss";
 
-@media print {
-  body * {
-    visibility: hidden;
-  }
-
-  #cv-preview, #cv-preview * {
-    visibility: visible !important;
-  }
-  
-  #cv-preview {
-    position: fixed !important;
-    left: 0 !important;
-    top: 0 !important;
-    display: flex !important;
-    flex-direction: row !important;
-    align-items: stretch !important;
-    max-width: none !important;
-    width: 210mm !important;
-    height: 297mm !important;
-    background-color: white !important;
-    margin: 0 !important;
-    padding: 0 !important;
-  }
-
-  #cv-preview aside {
-    width: 240px !important; 
-    flex-shrink: 0 !important;
-    height: 297mm !important;
-    -webkit-print-color-adjust: exact !important;
-    print-color-adjust: exact !important;
-  }
-
-  #cv-preview main {
-    flex: 1 !important;
-    display: flex !important;
-    flex-direction: column !important;
-    background-color: white !important;
-    min-height: 297mm !important; 
-    min-width: 0 !important;
-    margin-top: 50px !important;
-    padding: 30px !important;
-    box-sizing: border-box !important;
-    overflow: visible !important;
-    max-width: none !important;
-    width: auto !important; 
-  }
-
-  /* Force tous les conteneurs internes à ne pas dépasser 100% */
-  #cv-preview main section, 
-  #cv-preview main div {
-    max-width: 100% !important;
-    overflow: visible !important;
-  }
+.cv-template-root {
+  display: flex;
+  width: 100%; /* ou 210mm */
+  min-height: 297mm;
+  background-color: white;
 }
+

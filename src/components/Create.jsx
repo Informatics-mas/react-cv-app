@@ -11,7 +11,8 @@ import ModernTemplate from './models/ModernTemplate';
 import DesignerTemplate from './models/DesignerTemplate';
 import ClassicTemplate from './models/ClassicTemplate';
 import TechTemplate from './models/TechTemplate';
-import MetroTemplate from './models/MetroTemplate';
+import BenjaminTemplate from './models/BenjaminTemplate';
+import FuturisticTemplate from './models/FuturisticTemplate';
 import { 
   ArrowLeft, ArrowRight, User, GraduationCap, Download, Briefcase, 
   Languages, Heart, Zap, Eye, FileText 
@@ -74,20 +75,35 @@ function Create() {
 // Dans le JSX, à côté de "Mon CV Professionnel"
 
   const handlePrint = useReactToPrint({
-    contentRef: componentRef,
-    documentTitle: `CV_${cvData.general.name || 'Export'}`,
-    pageStyle: `
-    @page { size: portrait; margin: 0; }
+  contentRef: componentRef,
+  documentTitle: `CV_${cvData.general.name || 'Export'}`,
+  pageStyle: `
+    @page { 
+      size: A4 portrait; 
+      margin: 0; 
+    }
     @media print {
-      body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-      #cv-preview { display: flex !important; flex-direction: row !important; }
-      /* Force les couleurs choisies par l'utilisateur */
-      aside { background-color: ${cvData.theme.sidebarBg} !important; }
-      .accent-text { color: ${cvData.theme.accentColor} !important; }
-      .accent-border { border-color: ${cvData.theme.accentColor} !important; }
+      /* On force l'affichage en mode "écran large" même à l'impression */
+      #cv-preview {
+        display: flex !important;
+        flex-direction: row !important; /* Force l'alignement horizontal */
+        width: 210mm !important;
+        height: 297mm !important;
+        max-width: none !important;
+      }
+
+      /* On s'assure que les colonnes internes gardent leur place */
+      #cv-preview > div {
+        height: 100% !important;
+      }
+      
+      * {
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+      }
     }
   `,
-  });
+});
 
   // Logique de mise à jour
   const updateGeneral = (newData) => {
@@ -294,14 +310,15 @@ function Create() {
           <Download size={18} />
           telecharger mon CV PDF
         </button>
-        <div ref={componentRef} id="cv-preview" className="w-full max-w-[595px] bg-white shadow-2xl">
+        <div ref={componentRef} id="cv-preview" className="w-full max-w-[595px] print:max-w-none print:w-[210mm] print:h-[297mm] print:shadow-none bg-white shadow-2xl">
   
           {/* Choix du modèle selon le state */}
           {cvData.theme.template === 'modern' && <ModernTemplate data={cvData} />}
           {cvData.theme.template === 'classic' && <ClassicTemplate data={cvData} />}
           {cvData.theme.template === 'tech' && <TechTemplate data={cvData} />}
-          {cvData.theme.template === 'metro' && <MetroTemplate data={cvData} />}
+          {cvData.theme.template === 'benjamin' && <BenjaminTemplate data={cvData} />}
           {cvData.theme.template === 'designer' && <DesignerTemplate data={cvData} />}
+          {cvData.theme.template === 'futuristic' && <FuturisticTemplate data={cvData} />}
         </div>
       </div>
 

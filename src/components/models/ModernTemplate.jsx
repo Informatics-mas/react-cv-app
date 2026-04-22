@@ -6,10 +6,10 @@ const ModernTemplate = ({ data }) => {
   const { general, education, experience, skills, langue, hobbi, theme } = data;
 
   return (
-    <div className="w-full flex flex-col md:flex-row min-h-[842px] bg-white">
+    <div className="w-full flex flex-row min-h-[297mm] bg-white print:flex-row" style={{ width: '210mm' }}>
       {/* Sidebar */}
       <aside 
-        className="w-full md:w-64 rounded-tr-[45px] rounded-br-[45px] text-white p-8 space-y-6" 
+        className="w-[35%] p-8 text-white flex flex-col gap-6 rounded-tr-4xl rounded-br-4xl " 
         style={{ backgroundColor: theme.sidebarBg }}
       >
         <div className="text-center space-y-4">
@@ -21,7 +21,7 @@ const ModernTemplate = ({ data }) => {
             </div>
           )}
           <div className="space-y-1">
-            <h1 className="text-xl font-bold uppercase tracking-wide">{general.name || "Votre Nom"}</h1>
+            <h1 className="text-xl font-bold uppercase tracking-wide text-white">{general.name || "Votre Nom"}</h1>
             <p className="text-xs font-bold uppercase tracking-widest" style={{ color: theme.accentColor }}>
               {general.title || "Titre du Poste"}
             </p>
@@ -42,7 +42,7 @@ const ModernTemplate = ({ data }) => {
 
         {/* Langues */}
         {langue.length > 0 && (
-          <div className="space-y-2 pt-4">
+          <div className="pt-6 border-t border-white/10 space-y-3">
             <h3 className="font-bold text-[14px] uppercase tracking-widest" style={{ color: theme.accentColor }}>Langues</h3>
             {langue.map(l => (
               <p key={l.id} className="text-[12px] text-white/80 uppercase">{l.nom || l.langue}</p>
@@ -68,7 +68,7 @@ const ModernTemplate = ({ data }) => {
 
         {/* Loisirs */}
         {hobbi.length > 0 && (
-          <div className="space-y-2 pt-4">
+          <div className="pt-6 border-t border-white/10 space-y-3">
             <h3 className="font-bold text-[14px] uppercase tracking-widest text-emerald-400">Loisirs</h3>
             <div className="flex flex-wrap gap-2">
               {hobbi.map(h => (
@@ -82,7 +82,7 @@ const ModernTemplate = ({ data }) => {
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 p-10 bg-white">
+      <main className="w-[65%] p-10 bg-white">
         <div className="space-y-8">
           {/* Profil */}
           <section>

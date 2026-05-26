@@ -55,7 +55,7 @@ function Generalinfo({ data, onChange }) {
               type="file" 
               accept="image/*"
               onChange={handleImageChange}
-              className="absolute inset-0 opacity-0 cursor-pointer"
+              className="absolute inset-0 color-black opacity-0 cursor-pointer"
               title="Choisir une photo"
             />
           </div>

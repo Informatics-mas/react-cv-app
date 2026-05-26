@@ -13,13 +13,19 @@ import ClassicTemplate from './models/ClassicTemplate';
 import TechTemplate from './models/TechTemplate';
 import BenjaminTemplate from './models/BenjaminTemplate';
 import FuturisticTemplate from './models/FuturisticTemplate';
+import MinimalistGreyTemplate from './models/MinimalistGreyTemplate';
+import ArchTemplate from './models/ArchDesignTemplate';
+import ClassicBlueTemplate from './models/ClassicBlueTemplate';
 import { 
   ArrowLeft, ArrowRight, User, GraduationCap, Download, Briefcase, 
   Languages, Heart, Zap, Eye, FileText 
 } from 'lucide-react';
 import { useLocation, Link } from 'react-router-dom';
+import Swal from 'sweetalert2';
+import { useNavigate } from 'react-router-dom';
 
 function Create() {
+  const navigate = useNavigate();
   const location = useLocation();
   const componentRef = useRef(null); 
 
@@ -72,7 +78,6 @@ function Create() {
     }
  };
 
-// Dans le JSX, à côté de "Mon CV Professionnel"
 
   const handlePrint = useReactToPrint({
   contentRef: componentRef,
@@ -103,7 +108,58 @@ function Create() {
       }
     }
   `,
-});
+  });
+
+  const [downloadCount, setDownloadCount] = useState(() => {
+    const savedCount = localStorage.getItem('download_count');
+    return savedCount ? parseInt(savedCount) : 0;
+  });
+
+  const isLimitReached = downloadCount >= 5;
+
+  const getBackPath = () => {
+    if (localStorage.getItem('adminToken')) return '/Home';
+    if (localStorage.getItem('token')) return '/UserHome'; // ou la page de l'utilisateur
+    return '/'; // Accueil par défaut
+  };
+
+  const handleDownloadClick = () => {
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+
+    // 1. Vérification de la limite
+    if (isLimitReached) {
+      Swal.fire({
+        title: 'Limite atteinte 🛑',
+        text: 'Passez au mode Premium pour obtenir des téléchargements illimités et des modèles exclusifs.',
+        icon: 'info',
+        confirmButtonText: 'Voir les offres',
+        background: '#1e293b',
+        color: '#fff',
+        confirmButtonColor: '#3b82f6'
+      }).then((res) => {
+        if (res.isConfirmed) navigate('/Models');
+      });
+      return;
+    }
+
+    // 2. Vérification de la connexion
+    if (token) {
+      handlePrint();
+
+      // Incrémenter le compteur après le téléchargement
+      const newCount = downloadCount + 1;
+      setDownloadCount(newCount);
+      localStorage.setItem('download_count', newCount);
+
+      // Optionnel : Enregistrer la date du premier téléchargement pour gérer le "dans une semaine"
+      if (newCount === 1) {
+        localStorage.setItem('first_download_date', new Date().toISOString());
+      }
+    } else {
+      // Ton code Swal existant pour la connexion...
+      Swal.fire({ /* ... */ });
+    }
+  };
 
   // Logique de mise à jour
   const updateGeneral = (newData) => {
@@ -163,7 +219,7 @@ function Create() {
       {/* --- COLONNE GAUCHE : ÉDITEUR --- */}
       <div className="w-full min-h-[942px] lg:w-[450px] xl:w-[550px] bg-[#1e293b] border-r border-slate-700 h-screen overflow-y-auto p-6 scrollbar-hide">
         <div className="flex items-center justify-between mb-8">
-          <Link to="/" className="text-slate-400 hover:text-white transition-colors flex items-center gap-2">
+          <Link to={getBackPath()} className="text-slate-400 hover:text-white transition-colors flex items-center gap-2">
             <ArrowLeft size={20} />
             <span>Retour</span>
           </Link>
@@ -303,14 +359,46 @@ function Create() {
 
       {/* --- COLONNE DROITE : PREVIEW --- */}
       <div className="flex-1 bg-[#0f172a] p-4 md:p-5 overflow-y-auto flex flex-col items-center gap-4">
-        <button 
-          onClick={() => handlePrint()} 
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg hover:scale-105 active:scale-95"
-        >           
-          <Download size={18} />
-          telecharger mon CV PDF
-        </button>
-        <div ref={componentRef} id="cv-preview" className="w-full max-w-[595px] print:max-w-none print:w-[210mm] print:h-[297mm] print:shadow-none bg-white shadow-2xl">
+        <div className="flex flex-col sm:flex-row items-center gap-4">
+          {/* Bouton de Téléchargement */}
+          <button 
+            onClick={handleDownloadClick}
+            disabled={isLimitReached}
+            className={`flex items-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg 
+              ${isLimitReached 
+                ? 'bg-slate-700 cursor-not-allowed opacity-50 text-slate-400' 
+                : 'bg-emerald-600 hover:bg-emerald-500 hover:scale-105 active:scale-95 text-white'
+              }`}
+          >           
+            <Download size={18} />
+            {isLimitReached ? 'Limite atteinte' : 'Télécharger mon CV PDF'}
+          </button>
+            
+          {/* BOUTON "CHANGER DE PLAN" : Apparaît uniquement si la limite est atteinte */}
+          {isLimitReached && (
+            <Link 
+              to="/Plans" // Remplace par le lien vers ta page de plans si différente
+              className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg animate-pulse hover:animate-none"
+            >
+              <Zap size={18} fill="currentColor" />
+              Passer au Premium
+            </Link>
+          )}
+        </div>
+        
+        {/* Texte informatif */}
+        {isLimitReached ? (
+          <p className="text-red-400 text-xs mt-3 font-medium bg-red-400/10 px-3 py-1 rounded-full border border-red-400/20">
+            Vous avez atteint votre limite de 5 téléchargements gratuits.
+          </p>
+        ) : (
+          downloadCount > 0 && (
+            <p className="text-slate-400 text-[10px] mt-2">
+              Téléchargements restants : <span className="text-emerald-400 font-bold">{5 - downloadCount}</span> / 5
+            </p>
+          )
+        )}
+                <div ref={componentRef} id="cv-preview" className="w-full max-w-[595px] print:max-w-none print:w-[210mm] print:h-[297mm] print:shadow-none bg-white shadow-2xl">
   
           {/* Choix du modèle selon le state */}
           {cvData.theme.template === 'modern' && <ModernTemplate data={cvData} />}
@@ -319,6 +407,9 @@ function Create() {
           {cvData.theme.template === 'benjamin' && <BenjaminTemplate data={cvData} />}
           {cvData.theme.template === 'designer' && <DesignerTemplate data={cvData} />}
           {cvData.theme.template === 'futuristic' && <FuturisticTemplate data={cvData} />}
+          {cvData.theme.template === 'Arch' && <ArchTemplate data={cvData} />}
+          {cvData.theme.template === 'Minimalist' && <MinimalistGreyTemplate data={cvData} />}
+          {cvData.theme.template === 'Classic' && <ClassicBlueTemplate data={cvData} />}
         </div>
       </div>
 

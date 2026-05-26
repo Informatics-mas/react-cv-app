@@ -7,6 +7,7 @@ import {
   LayoutTemplate, 
   Heart,
   User, 
+  LogOut,
   Mail,
   ArrowRight
 } from 'lucide-react';
@@ -14,7 +15,16 @@ import {
 // Si tu veux vraiment GitHub, essaie "Github" ou "GitHub". 
 // Si ça plante encore, on utilisera du texte simple pour l'instant.
 
-function Home() {
+function Home2() {
+  const handleLogout = () => {
+  // Supprime le token et les données sensibles
+  localStorage.removeItem("adminToken");
+  localStorage.removeItem("cv_data_pro"); // Optionnel : si tu veux vider le CV en cours
+  
+  // Redirige vers l'accueil ou le login
+  window.location.href = "/"; 
+ };
+
   return (
     <div className="min-h-screen bg-[#131b2e] text-white font-sans flex flex-col">
       {/* Navigation Simple */}
@@ -28,14 +38,22 @@ function Home() {
                 </Link>
 
                 <div className="flex justify-between items-center gap-4">
-                  <Link to="/Models" className="bg-blue-600 hover:bg-blue-500 px-3 py-2 rounded-full font-bold text-lg shadow-lg shadow-blue-600/20 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2">Modèles <ArrowRight size={16} /> </Link>
-
+                  {/* Bouton Modèles existant */}
                   <Link 
-                    to="/login" 
-                    className="bg-blue-600 hover:bg-blue-500 text-white px-6 py-2 rounded-full font-bold transition-all shadow-lg shadow-blue-600/20"
+                    to="/Models" 
+                    className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-full font-bold text-sm shadow-lg shadow-blue-600/20 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2 text-white"
                   >
-                    Login
+                    Modèles <ArrowRight size={16} /> 
                   </Link>
+
+                  {/* Nouveau bouton de Déconnexion */}
+                  <button 
+                    onClick={handleLogout}
+                    className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-4 py-2 rounded-full font-bold text-sm border border-red-500/20 transition-all flex items-center gap-2"
+                  >
+                    <LogOut size={16} /> 
+                    Déconnexion
+                  </button>
                 </div>
               </div>
             </nav>
@@ -110,7 +128,6 @@ function Home() {
               <ul className="space-y-4 text-slate-400 text-sm">
                 <li><Link to="/Create" className="hover:text-white">Créateur de CV</Link></li>
                 <li><Link to="/Models" className="hover:text-white">Modèles</Link></li>
-                <li><Link to="/Admin" className="hover:text-white">AdHome</Link></li>
               </ul>
             </div>
 
@@ -153,4 +170,4 @@ const FeatureCard = ({ icon, title, desc }) => (
   </div>
 );
 
-export default Home;
+export default Home2;

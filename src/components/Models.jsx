@@ -12,6 +12,12 @@ import {
 
 function Models() {
 
+  const getBackPath = () => {
+    if (localStorage.getItem('adminToken')) return '/Home';
+    if (localStorage.getItem('token')) return '/UserHome'; // ou la page de l'utilisateur
+    return '/'; // Accueil par défaut
+  };
+
   const CV_MODELS = [
     { id: 'modern', name: 'Moderne', desc: 'Design épuré avec sidebar colorée', color: 'bg-blue-500' },
     { id: 'classic', name: 'Classique', desc: 'Minimaliste et professionnel', color: 'bg-slate-500' },
@@ -19,6 +25,9 @@ function Models() {
     { id: 'benjamin', name: 'Benjamin', desc: 'Design moderne et épuré', color: 'bg-violet-500' },
     { id: 'designer', name: 'Designer', desc: 'Design artistique et créatif', color: 'bg-pink-500' },
     { id: 'futuristic', name: 'Futuriste', desc: 'Design innovant et moderne', color: 'bg-purple-500' },
+    { id: 'Classic', name: 'Classic', desc: 'Design innovant et moderne', color: 'bg-red-500' },
+    { id: 'Arch', name: 'Arch Design', desc: 'Design innovant et moderne', color: 'bg-cyan-500' },
+    { id: 'Minimalist', name: 'Minimalist', desc: 'Design innovant et moderne', color: 'bg-gray-500' },
   ];
 
   return (
@@ -33,7 +42,7 @@ function Models() {
             <span className="text-xl font-bold tracking-tight">CV.Craft</span>
           </Link>
           
-          <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium">
+          <Link to={getBackPath()} className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium">
             <ArrowLeft size={16} />
             Retour à l'accueil
           </Link>

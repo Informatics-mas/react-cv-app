@@ -28,7 +28,7 @@ router.get("/", async (req, res) => {
  */
 router.post("/", async (req, res) => {
   try {
-    const { name, price, duree, features, description, isPopular } = req.body;
+    const { name, price, duree, features, description, isPopular, maxDownloads } = req.body;
 
     const newPlan = new Plans({
       name,
@@ -36,7 +36,8 @@ router.post("/", async (req, res) => {
       duree,
       features,
       description,
-      isPopular
+      isPopular,
+      maxDownloads
     });
 
     const savedPlan = await newPlan.save();

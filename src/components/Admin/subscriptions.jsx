@@ -19,7 +19,7 @@ export default function SubscriptionManager() {
   const [searchTerm, setSearchTerm] = useState(""); // Ajout d'une recherche
 
   const API_URL = `${import.meta.env.VITE_API_URL}/subscriptions`;
-  const token = localStorage.getItem("adminToken");
+  const token = localStorage.getItem("token");
 
   const fetchSubscriptions = useCallback(async () => {
     try {
@@ -57,9 +57,10 @@ export default function SubscriptionManager() {
   // ... (Garde tes fonctions startEdit, cancelEdit, handleUpdate, handleAction à l'identique)
 
   if (loading) return (
-    <div className="flex items-center justify-center p-20 text-blue-500 animate-pulse">
-      <RefreshCw className="animate-spin mr-2" /> Chargement des données...
-    </div>
+    <div className="flex flex-col items-center justify-center p-20 text-blue-500 animate-pulse">
+          <RefreshCw className="animate-spin mb-4" size={32} />
+          <p className="font-medium">Chargement des données...</p>
+        </div>
   );
 
   return (

@@ -28,7 +28,7 @@ function Adminhome() {
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        const token = localStorage.getItem("adminToken");
+        const token = localStorage.getItem("token");
         const res = await fetch(`${import.meta.env.VITE_API_URL}/stats/dashboard-stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
@@ -45,7 +45,7 @@ function Adminhome() {
 
   const handleLogout = () => {
     // 1. Nettoyage complet des traces de session
-    localStorage.removeItem("adminToken");
+    localStorage.removeItem("token");
     localStorage.removeItem("userRole"); 
     
     // 2. Redirection forcée vers le login
@@ -61,7 +61,7 @@ function Adminhome() {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const token = localStorage.getItem("adminToken");
+        const token = localStorage.getItem("token");
         const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/users`, {
           headers: { Authorization: `Bearer ${token}` }
         });

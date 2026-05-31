@@ -15,7 +15,7 @@ export default function Signin() {
 
   // 1. Rediriger si déjà connecté pour éviter les doubles inscriptions
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
+    const token = localStorage.getItem("token");
     if (token) {
       // Optionnel : tu pourrais ici aussi vérifier le rôle stocké pour rediriger vers /Adminhome ou /Home
       navigate("/Home");
@@ -39,7 +39,7 @@ export default function Signin() {
       if (res.ok) {
         // 2. Si le backend connecte l'utilisateur immédiatement après l'inscription
         if (data.token) {
-          localStorage.setItem("adminToken", data.token);
+          localStorage.setItem("token", data.token);
           
           // 3. DISTINCTION DE RÔLE (Même logique que le Login)
           const userRole = data.user?.role?.toLowerCase();

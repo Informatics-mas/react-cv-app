@@ -8,7 +8,8 @@ import {
   RefreshCw, 
   AlertCircle,
   Star,
-  X
+  X,
+  Download
 } from "lucide-react";
 
 export default function AdminPlans() {
@@ -18,23 +19,23 @@ export default function AdminPlans() {
   const [isEditing, setIsEditing] = useState(false);
   const [currentPlanId, setCurrentPlanId] = useState(null);
 
-  // État du formulaire conforme à ton modèle Mongoose
+  // État du formulaire conforme au modèle Mongoose incluant maxDownloads (min 2)
   const [formData, setFormData] = useState({
     name: "Free",
     price: 0,
     duree: 30,
+    maxDownloads: 5, 
     features: "",
     description: "",
     isPopular: false
   });
 
   const API_URL = `${import.meta.env.VITE_API_URL}/plans`;
-  const token = localStorage.getItem("adminToken");
+  const token = localStorage.getItem("token");
 
   // --- CHARGEMENT DES PLANS ---
   const fetchPlans = useCallback(async () => {
     try {
-      console.log("Appel API vers :", API_URL);
       setLoading(true);
       const res = await fetch(API_URL, {
         headers: { Authorization: `Bearer ${token}` }
@@ -61,9 +62,11 @@ export default function AdminPlans() {
     const method = isEditing ? "PUT" : "POST";
     const url = isEditing ? `${API_URL}/${currentPlanId}` : API_URL;
 
-    // Préparation des données (conversion de la chaîne features en tableau)
     const payload = {
       ...formData,
+      price: Number(formData.price),
+      duree: Number(formData.duree),
+      maxDownloads: parseInt(formData.maxDownloads, 10),
       features: formData.features.split(",").map(f => f.trim()).filter(f => f !== "")
     };
 
@@ -80,7 +83,6 @@ export default function AdminPlans() {
       const data = await res.json();
       if (!res.ok) throw new Error(data.message || "Une erreur est survenue");
 
-      // Reset
       resetForm();
       fetchPlans();
     } catch (err) {
@@ -110,6 +112,7 @@ export default function AdminPlans() {
       name: plan.name,
       price: plan.price,
       duree: plan.duree,
+      maxDownloads: plan.maxDownloads || 5, 
       features: plan.features.join(", "),
       description: plan.description,
       isPopular: plan.isPopular || false
@@ -118,22 +121,30 @@ export default function AdminPlans() {
   };
 
   const resetForm = () => {
-    setFormData({ name: "Free", price: 0, duree: 30, features: "", description: "", isPopular: false });
+    setFormData({ 
+      name: "Free", 
+      price: 0, 
+      duree: 30, 
+      maxDownloads: 5, 
+      features: "", 
+      description: "", 
+      isPopular: false 
+    });
     setIsEditing(false);
     setCurrentPlanId(null);
   };
 
   if (loading && plans.length === 0) {
     return (
-      <div className="flex justify-center p-20 text-blue-500">
-        <RefreshCw className="animate-spin" size={40} />
+      <div className="flex flex-col items-center justify-center p-20 text-blue-500 animate-pulse">
+        <RefreshCw className="animate-spin mb-4" size={32} />
+        <p className="font-medium">Synchronisation des plans...</p>
       </div>
     );
   }
 
   return (
-    <div className="max-w-6xl mx-auto space-y-10 pb-20">
-      
+    <div className="max-w-6xl mx-auto space-y-10 pb-20 p-4">
       {/* SECTION FORMULAIRE */}
       <div className="bg-[#0b1120] rounded-3xl border border-slate-800 p-8 shadow-2xl">
         <div className="flex justify-between items-center mb-8">
@@ -157,7 +168,6 @@ export default function AdminPlans() {
         )}
 
         <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Nom (Enum) */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold text-slate-500 uppercase">Type de Plan</label>
             <select 
@@ -171,7 +181,6 @@ export default function AdminPlans() {
             </select>
           </div>
 
-          {/* Prix */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold text-slate-500 uppercase">Prix (XOF)</label>
             <input 
@@ -183,7 +192,6 @@ export default function AdminPlans() {
             />
           </div>
 
-          {/* Durée */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold text-slate-500 uppercase">Durée (en jours)</label>
             <input 
@@ -195,19 +203,18 @@ export default function AdminPlans() {
             />
           </div>
 
-          {/* Features */}
-          <div className="flex flex-col gap-2 lg:col-span-2">
-            <label className="text-xs font-bold text-slate-500 uppercase">Avantages (séparés par des virgules)</label>
+          <div className="flex flex-col gap-2">
+            <label className="text-xs font-bold text-slate-500 uppercase">Téléchargements Max (Minimum 2)</label>
             <input 
-              type="text" 
-              placeholder="Ex: 5 CV, Support 24/7, Export PDF..."
+              type="number" 
               className="bg-slate-900 border border-slate-700 p-3 rounded-xl text-white outline-none focus:border-blue-500"
-              value={formData.features}
-              onChange={(e) => setFormData({...formData, features: e.target.value})}
+              value={formData.maxDownloads}
+              onChange={(e) => setFormData({...formData, maxDownloads: e.target.value})}
+              min="2"
+              required
             />
           </div>
 
-          {/* Is Popular */}
           <div className="flex flex-col gap-2">
             <label className="text-xs font-bold text-slate-500 uppercase">Mise en avant</label>
             <label className="flex items-center gap-3 bg-slate-900 border border-slate-700 p-3 rounded-xl cursor-pointer">
@@ -221,7 +228,17 @@ export default function AdminPlans() {
             </label>
           </div>
 
-          {/* Description */}
+          <div className="flex flex-col gap-2 lg:col-span-3">
+            <label className="text-xs font-bold text-slate-500 uppercase">Avantages (séparés par des virgules)</label>
+            <input 
+              type="text" 
+              placeholder="Ex: Support H24, Accès tous templates"
+              className="bg-slate-900 border border-slate-700 p-3 rounded-xl text-white outline-none focus:border-blue-500"
+              value={formData.features}
+              onChange={(e) => setFormData({...formData, features: e.target.value})}
+            />
+          </div>
+
           <div className="flex flex-col gap-2 lg:col-span-3">
             <label className="text-xs font-bold text-slate-500 uppercase">Description (min 10 car.)</label>
             <textarea 
@@ -233,21 +250,21 @@ export default function AdminPlans() {
             />
           </div>
 
-          <button type="submit" className="lg:col-span-3 bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg shadow-blue-600/20 active:scale-95">
+          <button type="submit" className="lg:col-span-3 bg-blue-600 hover:bg-blue-500 text-white font-bold py-4 rounded-xl transition-all shadow-lg active:scale-95">
             {isEditing ? "Mettre à jour le Plan" : "Enregistrer le Plan"}
           </button>
         </form>
       </div>
 
-      {/* GRILLE D'AFFICHAGE DES PLANS */}
+      {/* GRILLE DES PLANS */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
         {plans.map((plan) => (
           <div 
             key={plan._id} 
-            className={`relative bg-[#0b1120]/50 rounded-3xl border ${plan.isPopular ? 'border-blue-500 shadow-blue-500/10' : 'border-slate-800'} p-6 flex flex-col justify-between backdrop-blur-sm transition-all hover:translate-y-[-5px]`}
+            className={`relative bg-[#0b1120]/50 rounded-3xl border ${plan.isPopular ? 'border-blue-500 shadow-blue-500/10' : 'border-slate-800'} p-6 flex flex-col justify-between backdrop-blur-sm`}
           >
             {plan.isPopular && (
-              <div className="absolute -top-3 right-6 bg-blue-600 text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 uppercase tracking-widest shadow-lg">
+              <div className="absolute -top-3 right-6 bg-blue-600 text-[10px] font-black px-3 py-1 rounded-full flex items-center gap-1 uppercase tracking-widest text-white">
                 <Star size={10} fill="currentColor" /> Populaire
               </div>
             )}
@@ -262,7 +279,12 @@ export default function AdminPlans() {
                 <span className="text-3xl font-black text-white">{plan.price.toLocaleString()}</span>
                 <span className="text-slate-400 text-sm font-bold uppercase">XOF</span>
               </div>
-              <p className="text-slate-500 text-xs font-medium mb-6">Valable {plan.duree} jours</p>
+              <p className="text-slate-500 text-xs font-medium mb-4">Valable {plan.duree} jours</p>
+
+              <div className="inline-flex items-center gap-1.5 bg-slate-800 border border-slate-700 text-[11px] text-slate-300 font-bold px-2.5 py-1 rounded-md mb-6">
+                <Download size={12} className="text-emerald-400" />
+                Limite : <span className="text-emerald-400">{plan.maxDownloads || 0}</span> téléchargements
+              </div>
               
               <div className="space-y-3 mb-8">
                 {plan.features.map((feature, idx) => (
@@ -272,22 +294,18 @@ export default function AdminPlans() {
                   </div>
                 ))}
               </div>
-              
-              <p className="text-xs text-slate-500 italic border-t border-slate-800/50 pt-4 mb-6">
-                "{plan.description}"
-              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <button 
                 onClick={() => prepareEdit(plan)}
-                className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 transition-all text-xs font-bold"
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-bold transition-all"
               >
                 <Edit3 size={14} /> Éditer
               </button>
               <button 
                 onClick={() => handleDelete(plan._id)}
-                className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white transition-all text-xs font-bold"
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl bg-red-500/10 text-red-500 hover:bg-red-500 hover:text-white text-xs font-bold transition-all"
               >
                 <Trash2 size={14} /> Supprimer
               </button>

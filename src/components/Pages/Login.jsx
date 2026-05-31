@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 // Ajout des icônes Eye et EyeOff
 import { Lock, Mail, Loader2, FileText, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { FaGoogle, FaApple } from 'react-icons/fa';
+import { BiError } from "react-icons/bi";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -15,7 +16,7 @@ export default function Login() {
   const location = useLocation();
 
   useEffect(() => {
-    const token = localStorage.getItem("adminToken");
+    const token = localStorage.getItem("token");
     const savedRole = localStorage.getItem("userRole"); 
 
     if (token && savedRole) {
@@ -42,7 +43,8 @@ export default function Login() {
       const data = await res.json();
 
       if (res.ok && data.token) {
-        localStorage.setItem("adminToken", data.token);
+        // 🔥 CHANGEMENT ICI : On utilise "token" pour tout le monde
+        localStorage.setItem("token", data.token);
         localStorage.setItem("userRole", data.user.role); 
 
         const userRole = data.user?.role?.toLowerCase();
@@ -50,8 +52,7 @@ export default function Login() {
         if (userRole === "admin") {
           navigate("/Admin");
         } else {
-          const origin = location.state?.from?.pathname || "/Home";
-          navigate(origin);
+          navigate("/Home");
         }
       } else {
         setError(data.message || "Email ou mot de passe incorrect.");
@@ -91,8 +92,8 @@ export default function Login() {
           </div>
 
           {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold p-4 rounded-xl mb-8 flex items-center gap-3 animate-shake">
-              <span className="text-lg">⚠️</span> {error}
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-bold p-4 rounded-xl mb-8 flex items-center gap-3 text-center animate-shake">
+              <span className="text-lg"><BiError /></span> {error}
             </div>
           )}
 

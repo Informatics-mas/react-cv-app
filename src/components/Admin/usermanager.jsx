@@ -19,11 +19,11 @@ export default function UserManager() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const API_URL = `${import.meta.env.VITE_API_URL}/users`;
-  const token = localStorage.getItem("adminToken");
+  const token = localStorage.getItem("token");
 
   const fetchUsers = useCallback(async () => {
     // On récupère le token ici, juste avant l'appel
-    const currentToken = localStorage.getItem("adminToken");
+    const currentToken = localStorage.getItem("token");
 
     if (!currentToken) {
       setError("Session expirée. Veuillez vous reconnecter.");
@@ -168,7 +168,7 @@ export default function UserManager() {
                   </td>
 
                   {/* COLONNE RÔLE */}
-                  <td className="py-4 px-6">
+                  <td className="py-4 px-6 flex">
                     <RoleBadge role={user.role} />
                   </td>
 

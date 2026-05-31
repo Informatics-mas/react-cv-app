@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { FaUser } from 'react-icons/fa';
 import { 
@@ -8,13 +8,40 @@ import {
   Heart,
   User, 
   Mail,
-  ArrowRight
+  ArrowRight,
+  Upload
 } from 'lucide-react';
 
 // Si tu veux vraiment GitHub, essaie "Github" ou "GitHub". 
 // Si ça plante encore, on utilisera du texte simple pour l'instant.
 
 function Home() {
+  const [activeIndex, setActiveIndex] = useState(0);
+
+  // Configuration des actions du carrousel
+  const carouselItems = [
+    {
+      to: "/Create",
+      text: "Créer mon CV maintenant",
+      icon: <ArrowRight size={20} />,
+      className: "bg-blue-600 hover:bg-blue-500 shadow-blue-600/20 border border-transparent"
+    },
+    {
+      to: "/Create",
+      text: "Importer mon CV et changer de modèle",
+      icon: <Upload size={20} />,
+      className: "bg-blue-600 hover:bg-blue-500 shadow-slate-800/20 border border-transparent"
+    }
+  ];
+
+  // Effet pour faire défiler les boutons toutes les 20 secondes (20000ms)
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActiveIndex((prevIndex) => (prevIndex + 1) % carouselItems.length);
+    }, 10000);
+
+    return () => clearInterval(interval);
+  }, [carouselItems.length]);
   return (
     <div className="min-h-screen bg-[#131b2e] text-white font-sans flex flex-col">
       {/* Navigation Simple */}
@@ -41,9 +68,8 @@ function Home() {
             </nav>
 
       {/* Hero Section */}
-      <main className="max-w-7xl mx-auto px-6 pt-16 pb-24 items-center flex-1">
-        
-        <div className="space-y-8 text-center lg:text-center">
+      <main className="max-w-7xl mx-auto px-6 pt-16 pb-24 flex  items-center flex-1">
+        <div className="space-y-8 text-left lg:text-left">
           <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-4 py-1.5 rounded-full">
             <Sparkles size={16} className="text-blue-400" />
             <span className="text-sm font-medium text-blue-400">Le créateur de CV pour tous</span>
@@ -60,10 +86,44 @@ function Home() {
             Créez un CV professionnel, moderne et optimisé pour les recruteurs. 
             Pas de design à gérer, on s'occupe de tout pour vous.
           </p>
-            <Link to="/Create"
-              className="bg-blue-600 hover:bg-blue-500 px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-600/20 transition-all transform hover:-translate-y-1 text-center">
-              Créer mon CV maintenant
-            </Link>
+          </div>
+        </div>
+        <div className="w-2xl flex flex-col items-center lg:items-end justify-center min-h-[180px]">
+          <div className="relative w-full max-w-md h-20 flex items-center justify-center">
+            {carouselItems.map((item, index) => {
+              const isActive = index === activeIndex;
+              return (
+                <div
+                  key={index}
+                  className={`absolute w-full transition-all duration-750 ease-in-out transform flex justify-center lg:justify-end
+                    ${isActive 
+                      ? 'opacity-100 translate-y-0 scale-100 pointer-events-auto z-10' 
+                      : 'opacity-0 -translate-y-4 scale-95 pointer-events-none z-0'
+                    }`}
+                >
+                  <Link
+                    to={item.to}
+                    className={`${item.className} text-white w-full flex items-center justify-center gap-3 px-8 py-4 rounded-xl font-bold text-lg shadow-lg transition-all transform hover:-translate-y-0.5 text-center whitespace-nowrap`}
+                  >
+                    {item.text}
+                    {item.icon}
+                  </Link>
+                </div>
+              );
+            })}
+          </div>
+          {/* Indicateurs de progression (petites barres discrètes sous le bouton) */}
+          <div className="flex gap-2 mt-4 lg:mr-2">
+            {carouselItems.map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setActiveIndex(index)}
+                className={`h-1.5 rounded-full transition-all duration-300 ${
+                  index === activeIndex ? 'w-8 bg-blue-500' : 'w-2 bg-slate-700 hover:bg-slate-600'
+                }`}
+                aria-label={`Bouton ${index + 1}`}
+              />
+            ))}
           </div>
         </div>
       </main>
@@ -110,7 +170,6 @@ function Home() {
               <ul className="space-y-4 text-slate-400 text-sm">
                 <li><Link to="/Create" className="hover:text-white">Créateur de CV</Link></li>
                 <li><Link to="/Models" className="hover:text-white">Modèles</Link></li>
-                <li><Link to="/Admin" className="hover:text-white">AdHome</Link></li>
               </ul>
             </div>
 

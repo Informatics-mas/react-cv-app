@@ -29,6 +29,10 @@ const PlansSchema = new mongoose.Schema({
   isPopular: {
     type: Boolean,
     default: false
+  }, 
+  maxDownloads: {
+    type: Number,
+    min: [2, "le nombre de telechargement doit être au moi 2 "]
   }
 }, { 
   timestamps: true 

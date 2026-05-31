@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 
 const ProtectedRoute = ({ allowedRoles }) => {
-  const token = localStorage.getItem("adminToken");
+  const token = localStorage.getItem("token");
   const userRole = localStorage.getItem("userRole")?.toLowerCase();
 
   // 1. Si pas de token -> Direction Login

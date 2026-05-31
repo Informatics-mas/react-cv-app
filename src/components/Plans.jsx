@@ -6,7 +6,8 @@ import {
   ShieldCheck, 
   AlertTriangle, 
   FileText, 
-  ArrowLeft 
+  ArrowLeft,
+  Download
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { Link, useNavigate } from 'react-router-dom';
@@ -38,10 +39,33 @@ const PlanCards = () => {
   }, []);
 
   const handleSelectPlan = (plan) => {
+    // Cas 1 : Le plan est payant -> On redirige vers la page de paiement sécurisée
+    if (plan.price > 0) {
+      Swal.fire({
+        title: `Prendre le plan ${plan.name} ?`,
+        text: `Montant à régler : ${plan.price.toLocaleString()} CFA`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonColor: '#3b82f6',
+        cancelButtonColor: '#1e293b',
+        confirmButtonText: 'Procéder au paiement',
+        cancelButtonText: 'Annuler',
+        background: '#1e293b',
+        color: '#fff'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          // Redirection vers l'interface de paiement avec les données du plan
+          navigate('/payment', { state: { plan } });
+        }
+      });
+      return;
+    }
+  
+    // Cas 2 : Le plan est Gratuit (0 CFA) -> Activation immédiate sans passer par le paiement
     Swal.fire({
-      title: `Prendre le plan ${plan.name} ?`,
-      text: `Montant à régler : ${plan.price} CFA`,
-      icon: 'question',
+      title: 'Activer le plan Gratuit ?',
+      text: 'Vous passerez sur l\'offre standard de base.',
+      icon: 'info',
       showCancelButton: true,
       confirmButtonColor: '#3b82f6',
       cancelButtonColor: '#1e293b',
@@ -49,17 +73,63 @@ const PlanCards = () => {
       cancelButtonText: 'Annuler',
       background: '#1e293b',
       color: '#fff'
-    }).then((result) => {
+    }).then(async (result) => {
       if (result.isConfirmed) {
-        // Redirection vers paiement ou traitement
-        console.log("Choix du plan :", plan._id);
-        // navigate('/payment', { state: { plan } }); // Exemple de redirection
+        try {
+          const token = localStorage.getItem('token');
+          
+          // Enregistrement de l'abonnement gratuit en Base de Données
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/subscriptions/subscribe`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${token}`
+            },
+            body: JSON.stringify({
+              planId: plan._id,
+              paymentMethod: 'free',
+              details: { message: 'Souscription plan gratuit' }
+            })
+          });
+        
+          const data = await response.json();
+        
+          if (!response.ok) {
+            throw new Error(data.message || "Impossible d'activer le plan gratuit.");
+          }
+        
+          // Synchronisation locale immédiate du localStorage
+          localStorage.setItem('user_plan', plan.name);
+          localStorage.setItem('user_max_downloads', plan.maxDownloads ? plan.maxDownloads.toString() : '5');
+        
+          await Swal.fire({
+            title: 'Plan activé ! 🎉',
+            text: `Votre offre ${plan.name} est prête. Vous avez droit à ${plan.maxDownloads || 5} téléchargements.`,
+            icon: 'success',
+            background: '#1e293b',
+            color: '#fff',
+            confirmButtonColor: '#3b82f6'
+          });
+        
+          // Redirection logique
+          navigate(localStorage.getItem('token') ? '/Home' : '/UserHome');
+        
+        } catch (error) {
+          console.error("Erreur plan gratuit :", error);
+          Swal.fire({
+            title: 'Erreur d\'activation',
+            text: error.message || 'Une erreur est survenue en contactant le serveur.',
+            icon: 'error',
+            background: '#1e293b',
+            color: '#fff'
+          });
+        }
       }
     });
   };
 
   const getBackPath = () => {
-    if (localStorage.getItem('adminToken')) return '/Home';
+    if (localStorage.getItem('token')) return '/Home';
     if (localStorage.getItem('token')) return '/UserHome'; 
     return '/'; 
   };
@@ -104,7 +174,7 @@ const PlanCards = () => {
             Nos <span className="text-blue-500">Tarifs</span>
           </h2>
           <p className="text-slate-400 text-lg max-w-2xl mx-auto">
-            Débloquez tout votre potentiel. Passez au niveau supérieur et téléchargez vos CV sans aucune limite.
+            Débloquez tout votre potentiel. Passez au niveau supérieur et téléchargez vos CV selon vos besoins.
           </p>
         </div>
 
@@ -120,7 +190,7 @@ const PlanCards = () => {
             >
               {plan.isPopular && (
                 <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-blue-600 text-white text-[10px] font-black uppercase tracking-widest px-6 py-1.5 rounded-full shadow-lg">
-                  Le plus choisi
+                  recommandé
                 </div>
               )}
 
@@ -136,6 +206,12 @@ const PlanCards = () => {
               </div>
 
               <div className="space-y-4 mb-10 flex-1">
+                {/* LIGNE LIÉE AU QUOTA DYNAMIQUE DE TÉLÉCHARGEMENTS */}
+                <div className="flex items-start gap-3 text-emerald-400 text-sm font-semibold">
+                  <Download size={18} className="text-emerald-400 flex-shrink-0" />
+                  <span>Jusqu'à {plan.maxDownloads} téléchargements PDF</span>
+                </div>
+
                 {(Array.isArray(plan.features) 
                   ? plan.features 
                   : (plan.features ? plan.features.split(',') : [])

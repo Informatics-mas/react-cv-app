@@ -1,154 +1,321 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
-import { FaUser } from 'react-icons/fa';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   FileText, 
   Sparkles, 
   LayoutTemplate, 
-  Heart,
-  User, 
-  LogOut,
-  Mail,
-  ArrowRight
+  Heart, 
+  LogOut, 
+  Mail, 
+  ArrowRight,
+  User,
+  CreditCard,
+  PlusCircle,
+  DownloadCloud,
+  CheckCircle2
 } from 'lucide-react';
 
-// Si tu veux vraiment GitHub, essaie "Github" ou "GitHub". 
-// Si ça plante encore, on utilisera du texte simple pour l'instant.
-
 function Home2() {
-  const handleLogout = () => {
-  // Supprime le token et les données sensibles
-  localStorage.removeItem("adminToken");
-  localStorage.removeItem("cv_data_pro"); // Optionnel : si tu veux vider le CV en cours
+  const navigate = useNavigate();
   
-  // Redirige vers l'accueil ou le login
-  window.location.href = "/"; 
- };
+  // États synchronisés avec l'API en direct
+  const [userPlan, setUserPlan] = useState('Gratuit');
+  const [allowedLimit, setAllowedLimit] = useState(5);
+  const [downloadCount, setDownloadCount] = useState(0);
+  const [loading, setLoading] = useState(true);
+
+  // --- RECUPERATION DU STATUT EN TEMPS REEL ---
+  useEffect(() => {
+    let isMounted = true; // Empêche les fuites de mémoire et les conflits de rafraîchissement
+
+    const fetchUserProfile = async () => {
+      const token = localStorage.getItem("token"); // Lit la bonne clé globale
+      
+      if (!token) {
+        console.log("Aucun token trouvé, redirection...");
+        navigate("/");
+        return;
+      }
+
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+          method: "GET",
+          headers: {
+            "Authorization": `Bearer ${token}`,
+            "Content-Type": "application/json"
+          }
+        });
+
+        if (response.ok && isMounted) {
+          const userData = await response.json();
+          
+          setUserPlan(userData.user_plan || 'Gratuit');
+          setAllowedLimit(userData.user_max_downloads || 5);
+          
+          localStorage.setItem('user_plan', userData.user_plan || 'Gratuit');
+          localStorage.setItem('user_max_downloads', userData.user_max_downloads || 5);
+        } else if ((response.status === 401 || response.status === 403) && isMounted) {
+          // On ne déconnecte que si le token est explicitement invalide/expiré
+          handleLogout();
+        }
+      } catch (error) {
+        console.error("Erreur réseau lors du fetch /me :", error);
+        // Optionnel : ne pas déconnecter en cas de simple coupure réseau pour éviter les boucles
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    };
+
+    const savedCount = localStorage.getItem('download_count');
+    setDownloadCount(savedCount ? parseInt(savedCount, 10) : 0);
+
+    fetchUserProfile();
+
+    return () => {
+      isMounted = false; // Nettoyage lors du démontage du composant
+    };
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.clear(); // 👑 Nettoie l'intégralité du stockage pour éviter les conflits entre comptes
+    window.location.href = "/"; 
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center text-white">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+          <p className="text-slate-400 text-sm font-medium">Chargement de votre espace...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-[#131b2e] text-white font-sans flex flex-col">
-      {/* Navigation Simple */}
-      <nav className="w-full border-b border-slate-800/50 bg-[#131b2e]/50 backdrop-blur-md sticky top-0 z-50">
-              <div className="flex justify-between items-center p-6 max-w-7xl mx-auto">
-                <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-                  <div className="bg-blue-600 p-2 rounded-lg">
-                    <FileText size={24} />
-                  </div>
-                  <span className="text-xl font-bold tracking-tight">CV.Craft</span>
-                </Link>
+    <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
+      
+      {/* --- BANDEAU DE NAVIGATION --- */}
+      <nav className="w-full border-b border-slate-800/80 bg-[#0f172a]/80 backdrop-blur-md sticky top-0 z-50">
+        <div className="flex justify-between items-center p-5 max-w-7xl mx-auto">
+          <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
+            <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-600/20">
+              <FileText size={22} className="text-white" />
+            </div>
+            <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
+              CV.Craft
+            </span>
+          </Link>
 
-                <div className="flex justify-between items-center gap-4">
-                  {/* Bouton Modèles existant */}
-                  <Link 
-                    to="/Models" 
-                    className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-full font-bold text-sm shadow-lg shadow-blue-600/20 transition-all transform hover:-translate-y-1 flex items-center justify-center gap-2 text-white"
-                  >
-                    Modèles <ArrowRight size={16} /> 
-                  </Link>
+          <div className="flex items-center gap-4">
+            <div className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${
+              userPlan.toLowerCase() === 'gratuit' || userPlan.toLowerCase() === 'free'
+                ? 'bg-slate-800/50 text-slate-400 border-slate-700/60' 
+                : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
+            }`}>
+              <span className={`w-1.5 h-1.5 rounded-full ${userPlan.toLowerCase() === 'gratuit' || userPlan.toLowerCase() === 'free' ? 'bg-slate-400' : 'bg-amber-400'}`}></span>
+              Plan {userPlan}
+            </div>
 
-                  {/* Nouveau bouton de Déconnexion */}
-                  <button 
-                    onClick={handleLogout}
-                    className="bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white px-4 py-2 rounded-full font-bold text-sm border border-red-500/20 transition-all flex items-center gap-2"
-                  >
-                    <LogOut size={16} /> 
-                    Déconnexion
-                  </button>
-                </div>
-              </div>
-            </nav>
+            <Link 
+              to="/Plans" 
+              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700/80 px-4 py-2 rounded-xl text-sm font-medium border border-slate-700 transition-all text-slate-200"
+            >
+              <CreditCard size={15} />
+              <span>Mon Plan</span>
+            </Link>
 
-      {/* Hero Section */}
-      <main className="max-w-7xl mx-auto px-6 pt-16 pb-24 items-center flex-1">
+            <Link 
+              to="/Models" 
+              className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl font-bold text-sm shadow-md shadow-blue-600/10 transition-all text-white flex items-center gap-1"
+            >
+              Modèles
+            </Link>
+
+            <button 
+              onClick={handleLogout}
+              className="p-2 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white rounded-xl border border-red-500/20 transition-all"
+              title="Déconnexion"
+            >
+              <LogOut size={16} /> 
+            </button>
+          </div>
+        </div>
+      </nav>
+
+      {/* --- TABLEAU DE BORD UTILSATEUR --- */}
+      <main className="max-w-7xl mx-auto px-6 py-12 lg:py-20 w-full flex-1">
         
-        <div className="space-y-8 text-center lg:text-center">
-          <div className="inline-flex items-center gap-2 bg-blue-500/10 border border-blue-500/20 px-4 py-1.5 rounded-full">
-            <Sparkles size={16} className="text-blue-400" />
-            <span className="text-sm font-medium text-blue-400">Le créateur de CV pour tous</span>
+        <div className="bg-gradient-to-r from-slate-900 via-[#1e293b]/40 to-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 mb-12 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 text-blue-400 font-medium text-sm">
+              <User size={16} />
+              <span>Espace Membre</span>
+            </div>
+            <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+              Ravi de vous revoir sur CV.Craft ! 👋
+            </h1>
+            <p className="text-slate-400 text-sm max-w-xl">
+              Prêt à propulser votre carrière ? Créez un nouveau modèle ou mettez à jour vos données actuelles en quelques clics.
+            </p>
           </div>
           
-          <h1 className="text-5xl lg:text-7xl font-extrabold leading-tight">
-            Décrochez votre <br />
-            <span className="text-blue-500">Job de Rêve </span> en 5 minutes.
-          </h1>
-
-          <div className="flex flex-col sm:flex-row gap-4 justify-center lg:justify-start pt-4">
-
-          <p className="text-slate-400 text-lg max-w-xl mx-auto lg:mx-0">
-            Créez un CV professionnel, moderne et optimisé pour les recruteurs. 
-            Pas de design à gérer, on s'occupe de tout pour vous.
-          </p>
-            <Link to="/Create"
-              className="bg-blue-600 hover:bg-blue-500 px-8 py-4 rounded-xl font-bold text-lg shadow-lg shadow-blue-600/20 transition-all transform hover:-translate-y-1 text-center">
-              Créer mon CV maintenant
+          <div className="flex flex-wrap gap-3 w-full md:w-auto">
+            <Link 
+              to="/Create"
+              className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm px-5 py-3 rounded-xl transition-all shadow-lg shadow-blue-600/10 w-full sm:w-auto"
+            >
+              <PlusCircle size={18} />
+              Créer / Éditer mon CV
             </Link>
           </div>
         </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+          
+          {/* Widget 1 : Statut du Plan */}
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between hover:border-slate-700/80 transition-all shadow-md group">
+            <div className="space-y-4">
+              <div className="p-3 bg-amber-500/10 border border-amber-500/20 text-amber-400 w-fit rounded-xl">
+                <CreditCard size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-slate-200">Abonnement Actuel</h3>
+                <p className="text-slate-400 text-xs mt-1">Géré en temps réel selon vos options de facturation.</p>
+              </div>
+              <div className="pt-2">
+                <span className="text-2xl font-extrabold text-amber-400 tracking-tight">{userPlan}</span>
+              </div>
+            </div>
+            <Link 
+              to="/Plans" 
+              className="text-xs font-bold text-blue-400 group-hover:text-blue-300 flex items-center gap-1 mt-6 transition-colors"
+            >
+              Gérer ou modifier mon offre <ArrowRight size={12} />
+            </Link>
+          </div>
+
+          {/* Widget 2 : Quota de téléchargements DYNAMIQUE */}
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between hover:border-slate-700/80 transition-all shadow-md group">
+            <div className="space-y-4">
+              <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 w-fit rounded-xl">
+                <DownloadCloud size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-slate-200">Téléchargements PDF</h3>
+                <p className="text-slate-400 text-xs mt-1">Utilisation basée sur les limites de votre offre.</p>
+              </div>
+              <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden mt-3">
+                <div 
+                  className="bg-emerald-500 h-full transition-all duration-500" 
+                  style={{ width: `${Math.min((downloadCount / allowedLimit) * 100, 100)}%` }}
+                ></div>
+              </div>
+            </div>
+            <span className="text-xs font-medium text-slate-400 mt-6">
+              Compteur : <strong className="text-slate-200">{downloadCount} / {allowedLimit}</strong> téléchargements
+            </span>
+          </div>
+
+          {/* Widget 3 : Avantage & Conseils */}
+          <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between hover:border-slate-700/80 transition-all shadow-md group">
+            <div className="space-y-4">
+              <div className="p-3 bg-purple-500/10 border border-purple-500/20 text-purple-400 w-fit rounded-xl">
+                <Sparkles size={20} />
+              </div>
+              <div>
+                <h3 className="font-bold text-lg text-slate-200">Analyse de CV par IA</h3>
+                <p className="text-slate-400 text-xs mt-1">Gagnez du temps en injectant directement votre ancien PDF.</p>
+              </div>
+              <ul className="text-xs text-slate-400 space-y-1.5 pt-1">
+                <li className="flex items-center gap-1.5 text-slate-300">
+                  <CheckCircle2 size={12} className="text-blue-500" /> Remplissage automatique
+                </li>
+                <li className="flex items-center gap-1.5 text-slate-300">
+                  <CheckCircle2 size={12} className="text-blue-500" /> Structure de données propre
+                </li>
+              </ul>
+            </div>
+            <Link 
+              to="/Create" 
+              className="text-xs font-bold text-purple-400 group-hover:text-purple-300 flex items-center gap-1 mt-4 transition-colors"
+            >
+              Tester l'importation IA <ArrowRight size={12} />
+            </Link>
+          </div>
+
+        </div>
+
+        {/* --- SECTION DES FONCTIONNALITÉS --- */}
+        <section className="border-t border-slate-800/60 pt-16">
+          <div className="text-center max-w-2xl mx-auto mb-12 space-y-3">
+            <h2 className="text-2xl md:text-3xl font-extrabold">Pourquoi concevoir avec CV.Craft ?</h2>
+            <p className="text-slate-400 text-sm">
+              Tout est pensé pour optimiser l'impact visuel et la lisibilité auprès des systèmes ATS des recruteurs.
+            </p>
+          </div>
+          <div className="grid md:grid-cols-3 gap-8">
+            <FeatureCard 
+              icon={<LayoutTemplate className="text-blue-500" />}
+              title="Design Professionnel"
+              desc="Des gabarits graphiques validés et plébiscités par des experts RH."
+            />
+            <FeatureCard 
+              icon={<Sparkles className="text-purple-500" />}
+              title="Export Vectoriel Instantané"
+              desc="Générez et téléchargez votre CV en PDF haute qualité A4 d'un seul clic."
+            />
+            <FeatureCard 
+              icon={<FileText className="text-emerald-500" />}
+              title="Éditeur Fluide"
+              desc="Ajoutez, masquez ou modifiez des sections sur mobile comme sur ordinateur."
+            />
+          </div>
+        </section>
       </main>
 
-      {/* Features */}
-      <section className="bg-slate-900/50 py-20 border-t border-slate-800">
-        <div className="max-w-7xl mx-auto px-6 grid md:grid-cols-3 gap-12">
-          <FeatureCard 
-            icon={<LayoutTemplate className="text-blue-500" />}
-            title="Design Pro"
-            desc="Des templates testés par des recruteurs pour maximiser vos chances."
-          />
-          <FeatureCard 
-            icon={<Sparkles className="text-purple-500" />}
-            title="Export Rapide"
-            desc="Téléchargez votre CV en PDF haute qualité en un clic."
-          />
-          <FeatureCard 
-            icon={<FileText className="text-emerald-500" />}
-            title="Responsive"
-            desc="Modifiez votre CV sur mobile, tablette ou ordinateur."
-          />
-        </div>
-      </section>
-
-      {/* Footer sans les icônes qui buggent */}
-      <footer className="bg-[#0f172a] border-t border-slate-800 pt-16 pb-8">
+      {/* --- FOOTER --- */}
+      <footer className="bg-[#0b0f19] border-t border-slate-900 pt-16 pb-8 text-sm">
         <div className="max-w-7xl mx-auto px-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
             <div className="space-y-4">
               <div className="flex items-center gap-2">
-                <div className="bg-blue-600 p-1.5 rounded-md">
+                <div className="bg-blue-600 p-1.5 rounded-lg">
                   <FileText size={18} />
                 </div>
                 <span className="text-lg font-bold tracking-tight">CV.Craft</span>
               </div>
-              <p className="text-slate-400 text-sm">
-                La plateforme ultime pour créer des CV professionnels.
+              <p className="text-slate-400 text-xs leading-relaxed">
+                La plateforme ultime et intelligente pour structurer et créer des CV professionnels percutants.
               </p>
             </div>
 
             <div>
-              <h4 className="font-bold mb-6 text-sm uppercase text-slate-300">Produit</h4>
-              <ul className="space-y-4 text-slate-400 text-sm">
-                <li><Link to="/Create" className="hover:text-white">Créateur de CV</Link></li>
-                <li><Link to="/Models" className="hover:text-white">Modèles</Link></li>
+              <h4 className="font-bold mb-5 text-xs uppercase tracking-widest text-slate-300">Produit</h4>
+              <ul className="space-y-3 text-slate-400 text-xs">
+                <li><Link to="/Create" className="hover:text-white transition-colors">Créateur de CV</Link></li>
+                <li><Link to="/Models" className="hover:text-white transition-colors">Modèles de CV</Link></li>
               </ul>
             </div>
 
             <div>
-              <h4 className="font-bold mb-6 text-sm uppercase text-slate-300">Aide</h4>
-              <ul className="space-y-4 text-slate-400 text-sm">
-                <li><a href="#" className="hover:text-white">FAQ</a></li>
-                <li><a href="mailto:ogouogoudavid@gmail.com" className="hover:text-white">Contact</a></li>
+              <h4 className="font-bold mb-5 text-xs uppercase tracking-widest text-slate-300">Aide</h4>
+              <ul className="space-y-3 text-slate-400 text-xs">
+                <li><a href="#" className="hover:text-white transition-colors">FAQ</a></li>
+                <li><a href="mailto:ogouogoudavid@gmail.com" className="hover:text-white transition-colors">Support technique</a></li>
               </ul>
             </div>
 
             <div>
-              <h4 className="font-bold mb-6 text-sm uppercase text-slate-300">Contact</h4>
-              <div className="flex items-center gap-2 text-slate-400 text-sm">
-                <Mail size={16} />
+              <h4 className="font-bold mb-5 text-xs uppercase tracking-widest text-slate-300">Contact</h4>
+              <div className="flex items-center gap-2 text-slate-400 text-xs">
+                <Mail size={14} className="text-slate-500" />
                 <span>ogouogoudavid@gmail.com</span>
               </div>
             </div>
           </div>
 
-          <div className="border-t border-slate-800/50 pt-8 flex justify-between items-center">
+          <div className="border-t border-slate-900 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <p className="text-slate-500 text-xs">© 2026 CV.Craft. Tous droits réservés.</p>
             <p className="text-slate-500 text-xs flex items-center gap-1">
               Fait avec <Heart size={12} className="text-red-500 fill-red-500" /> par Informatics
@@ -161,12 +328,12 @@ function Home2() {
 }
 
 const FeatureCard = ({ icon, title, desc }) => (
-  <div className="space-y-4">
-    <div className="bg-slate-800 w-12 h-12 rounded-lg flex items-center justify-center">
+  <div className="space-y-3 bg-slate-900/40 border border-slate-800/60 p-5 rounded-2xl hover:border-slate-800 transition-colors">
+    <div className="bg-slate-800/80 w-11 h-11 rounded-xl flex items-center justify-center border border-slate-700/30">
       {icon}
     </div>
-    <h3 className="text-xl font-bold">{title}</h3>
-    <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
+    <h3 className="text-lg font-bold text-slate-200">{title}</h3>
+    <p className="text-slate-400 text-xs leading-relaxed">{desc}</p>
   </div>
 );
 

@@ -52,7 +52,8 @@ export default function Login() {
         if (userRole === "admin") {
           navigate("/Admin");
         } else {
-          navigate("/Home");
+          const origin = location.state?.from?.pathname || "/Home";
+          navigate(origin);
         }
       } else {
         setError(data.message || "Email ou mot de passe incorrect.");

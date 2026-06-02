@@ -4,29 +4,36 @@ const UserSchema = new mongoose.Schema({
   name: {
     type: String,
     required: true,
-    trim: true // Enlève les espaces inutiles avant ou après
+    trim: true
   },
   email: { 
     type: String, 
     required: true, 
     unique: true, 
-    lowercase: true, // Transforme "Admin@Test.com" en "admin@test.com"
-    trim: true       // Enlève les espaces inutiles avant ou après
+    lowercase: true,
+    trim: true       
   },
   password: { 
     type: String, 
     required: true 
   },
-  role:{
+  role: {
     type: String,
-    enum: ['user', 'admin'], // Limite les rôles possibles
-    default: 'user' // Par défaut, un nouvel admin est un "admin"
+    enum: ['user', 'admin', 'premium'], // 💡 Ajoute 'premium' ici !
+    default: 'user' 
   },
+  user_plan: {
+    type: String,
+    default: "Free" // 💡 Ajoute le champ pour correspondre aux routes
+  },
+  user_max_downloads: {
+    type: Number,
+    default: 5 // 💡 Ajoute le champ pour correspondre aux routes
+  }
 }, { 
-  timestamps: true // Ajoute automatiquement "createdAt" et "updatedAt" (utile pour savoir quand un admin a été créé)
+  timestamps: true 
 });
 
-// Sécurité pour éviter les erreurs de re-déclaration du modèle par Mongoose
 const User = mongoose.models.User || mongoose.model("User", UserSchema);
 
 export default User;

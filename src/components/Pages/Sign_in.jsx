@@ -39,20 +39,21 @@ export default function Signin() {
       if (res.ok) {
         // 2. Si le backend connecte l'utilisateur immédiatement après l'inscription
         if (data.token) {
+          // On stocke TOUTES les informations nécessaires pour le fonctionnement global[cite: 21]
           localStorage.setItem("token", data.token);
-          
-          // 3. DISTINCTION DE RÔLE (Même logique que le Login)
+          localStorage.setItem("userRole", data.user.role); // 💡 TRÈS IMPORTANT : Ajoute cette ligne !
+        
           const userRole = data.user?.role?.toLowerCase();
-
+        
           if (userRole === "admin") {
-            navigate("/Adminhome");
+            navigate("/Adminhome"); // Redirection Admin
           } else {
-            // Redirige vers Home ou vers la page où il était avant
+            // Redirige vers Home ou vers la page où il était avant[cite: 20]
             const origin = location.state?.from?.pathname || "/Home";
             navigate(origin);
           }
         } else {
-          // Si ton backend ne renvoie pas de token (demande de confirmation mail par ex)
+          // Si jamais le backend change et ne renvoie plus de token[cite: 20]
           navigate("/login", { state: { message: "Compte créé ! Veuillez vous connecter." } });
         }
       } else {

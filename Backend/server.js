@@ -111,7 +111,7 @@ app.post("/api/parse-cv", upload.single("cv_file"), async (req, res) => {
     };
 
     // Sélection du modèle flash rapide et optimisé pour le processing documentaire binaire
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
     const prompt = `
       Tu es un expert en recrutement et un système d'extraction de données de CV hautement qualifié.

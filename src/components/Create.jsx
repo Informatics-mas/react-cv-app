@@ -212,17 +212,29 @@ function Create() {
     contentRef: componentRef,
     documentTitle: `CV_${cvData.general.name || 'Export'}`,
     pageStyle: `
-      @page { size: A4 portrait; margin: 0; }
+      @page { 
+        size: A4 portrait; 
+        margin: 0; 
+      }
       @media print {
+        /* On force l'affichage en mode "écran large" même à l'impression */
         #cv-preview {
           display: flex !important;
-          flex-direction: row !important;
+          flex-direction: row !important; /* Force l'alignement horizontal */
           width: 210mm !important;
           height: 297mm !important;
           max-width: none !important;
         }
-        #cv-preview > div { height: 100% !important; }
-        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  
+        /* On s'assure que les colonnes internes gardent leur place */
+        #cv-preview > div {
+          height: 100% !important;
+        }
+        
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
       }
     `,
   });

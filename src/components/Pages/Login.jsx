@@ -154,7 +154,8 @@ export default function Login() {
 
           {/* ... reste du composant (Google/Apple) ... */}
           <div className="text-center mt-8 space-y-4 max-w-sm mx-auto">
-                <div className="flex items-center justify-center bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
+                
+          {/*<div className="flex items-center justify-center bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
                   <Link to="/login" className="flex-1 py-3.5 flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
                     <FaGoogle className="h-5 w-5 text-blue-600" />
                     <span className="text-black font-bold text-sm">Google</span>
@@ -164,7 +165,7 @@ export default function Login() {
                     <FaApple className="h-5 w-5 text-black" />
                     <span className="text-black font-bold text-sm">Apple</span>
                   </Link>
-                </div>
+                </div>*/}
                 <p className="text-slate-500 text-xs mt-6">
                   Vous n'avez pas de compte ? <Link to="/sign-in" className="text-blue-500 hover:underline">Inscrivez-vous</Link>
                 </p>

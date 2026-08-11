@@ -160,7 +160,7 @@ export default function Signin() {
           </form>
 
           <div className="text-center mt-8 space-y-6">
-            <div className="flex items-center gap-4">
+            {/*<div className="flex items-center gap-4">
               <div className="h-[1px] bg-white/10 flex-1"></div>
               <span className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">Ou continuer avec</span>
               <div className="h-[1px] bg-white/10 flex-1"></div>
@@ -176,7 +176,7 @@ export default function Signin() {
                 <FaApple className="h-5 w-5 text-black" />
                 <span className="text-black font-bold text-xs">Apple</span>
               </button>
-            </div>
+            </div>*/}
 
             <p className="text-slate-500 text-xs mt-6">
               Déjà un compte ? <Link to="/login" className="text-blue-500 font-bold hover:underline">Se connecter</Link>

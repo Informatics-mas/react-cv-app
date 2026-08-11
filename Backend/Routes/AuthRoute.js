@@ -2,6 +2,7 @@ import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import User from "../Models/user.js";
+import { sendWelcomeEmail } from '../utils/emailService.js';
 import { protect } from "../Middleware/AuthMiddleware.js"; // 👈 On importe ton middleware de protection
 
 const router = express.Router();
@@ -11,52 +12,72 @@ router.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
+    // 1. Validation des champs requis
     if (!name || !email || !password) {
       return res.status(400).json({ message: "Veuillez remplir tous les champs" });
     }
 
-    const userExists = await User.findOne({ email: email.toLowerCase().trim() });
+    const cleanEmail = email.toLowerCase().trim();
+
+    // 2. Vérification si l'utilisateur existe déjà
+    const userExists = await User.findOne({ email: cleanEmail });
     if (userExists) {
       return res.status(400).json({ message: "Cette adresse mail ne peut pas être utilisée car elle existe déjà" });
     }
 
+    // 3. Hachage du mot de passe
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
+    // 4. Création et enregistrement de l'utilisateur
     const newUser = new User({
       name,
-      email: email.toLowerCase().trim(),
+      email: cleanEmail,
       password: hashedPassword,
-      role: "user" 
+      role: "user",
+      user_plan: "Gratuit",       // Valeur par défaut pour l'affichage de la Navbar
+      user_max_downloads: 5      // Quota de base gratuit
     });
 
     const savedUser = await newUser.save();
 
+    // 5. Vérification de la clé JWT
     if (!process.env.JWT_SECRET) {
       console.error("ERREUR : JWT_SECRET non configuré !");
       return res.status(500).json({ message: "Erreur de configuration serveur" });
     }
 
+    // 6. Génération du Token JWT
     const token = jwt.sign(
-      { id: savedUser._id, role: savedUser.role }, // 💡 On ne met que le strict minimum dans le token
+      { id: savedUser._id, role: savedUser.role },
       process.env.JWT_SECRET,
       { expiresIn: "1d" }
     );
 
+    // 🔥 7. ENVOI DE L'EMAIL DE BIENVENUE 🔥
+    // Déclenché en arrière-plan (sans await) pour ne pas retarder la réponse utilisateur
+    sendWelcomeEmail(savedUser.email, savedUser.name)
+      .then(() => console.log(`✉️ Email de bienvenue envoyé avec succès à ${savedUser.email}`))
+      .catch(err => console.error("❌ Échec de l'envoi de l'email de bienvenue :", err));
+
+    // 8. Envoi de la réponse de succès au client
     res.status(201).json({
+      success: true,
       token,
       user: {
         id: savedUser._id,
         name: savedUser.name,
         email: savedUser.email,
-        role: savedUser.role
+        role: savedUser.role,
+        user_plan: savedUser.user_plan,
+        user_max_downloads: savedUser.user_max_downloads
       },
       message: "Utilisateur créé avec succès ! 🚀"
     });
 
   } catch (error) {
     console.error("Erreur Register:", error);
-    res.status(500).json({ message: "Erreur technique lors de l'inscription" });
+    res.status(500).json({ message: "Erreur serveur lors de l'inscription.", error: error.message });
   }
 });
 

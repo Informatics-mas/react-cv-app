@@ -20,13 +20,15 @@ import {
   ArrowLeft, ArrowRight, User, GraduationCap, Download, Briefcase, 
   Languages, Heart, Zap, Upload 
 } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import Swal from 'sweetalert2';
 
 function Create() {
   const navigate = useNavigate();
+  const location = useLocation();
   const componentRef = useRef(null); 
   const fileInputRef = useRef(null);
+  const userPlan = localStorage.getItem('user_plan') || 'Free';
 
   // --- GESTION DE LA LIMITE DYNAMIQUE DE TÉLÉCHARGEMENT ---
   const [allowedLimit, setAllowedLimit] = useState(() => {
@@ -61,6 +63,20 @@ function Create() {
     syncUserPlanLimit();
   }, []);
 
+  useEffect(() => {
+    if (location.state?.selectedTemplate) {
+      setCvData(prev => ({
+        ...prev,
+        theme: {
+          ...prev.theme,
+          template: location.state.selectedTemplate
+        }
+      }));
+
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
+
   const [cvData, setCvData] = useState(() => {
      const queryParams = new URLSearchParams(window.location.search);
      const templateFromUrl = queryParams.get('template');
@@ -93,6 +109,31 @@ function Create() {
   });
 
   const handleImportClick = () => {
+    // 👑 Récupération du plan actuel (en minuscules pour éviter les fautes de casse)
+    const activePlan = (localStorage.getItem('user_plan') || 'Free').toLowerCase();
+
+    // 🔐 Sécurité : Si l'utilisateur n'est pas Premium, on bloque l'accès immédiatement
+    if (activePlan !== 'premium') {
+      Swal.fire({
+        title: 'Fonctionnalité Premium ',
+        text: 'L\'importation et l\'analyse automatique de CV par notre IA sont exclusivement réservées aux membres Premium.',
+        icon: 'lock',
+        showCancelButton: true,
+        confirmButtonColor: '#3b82f6',
+        cancelButtonColor: '#1e293b',
+        confirmButtonText: 'Voir les offres Premium',
+        cancelButtonText: 'Plus tard',
+        background: '#1e293b',
+        color: '#fff'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate('/plans'); // Redirige vers ta page des tarifs
+        }
+      });
+      return; // On stoppe l'exécution ici
+    }
+
+    // Si l'utilisateur est Premium, on ouvre le sélecteur de fichier normalement
     fileInputRef.current.click();
   };
 
@@ -214,21 +255,36 @@ function Create() {
     pageStyle: `
       @page { 
         size: A4 portrait; 
-        margin: 0; 
+        margin: 0 !important; /* Force la suppression absolue des marges du navigateur */
       }
       @media print {
+        html, body {
+          height: 297mm !important;
+          overflow: hidden !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+
         /* On force l'affichage en mode "écran large" même à l'impression */
         #cv-preview {
           display: flex !important;
-          flex-direction: row !important; /* Force l'alignement horizontal */
+          flex-direction: row !important; 
           width: 210mm !important;
           height: 297mm !important;
-          max-width: none !important;
+          max-width: 210mm !important;
+          max-height: 297mm !important;
+          box-shadow: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important; /* Empêche le contenu de déborder sur la page 2 */
+          page-break-inside: avoid !important;
+          page-break-after: avoid !important;
         }
   
         /* On s'assure que les colonnes internes gardent leur place */
         #cv-preview > div {
           height: 100% !important;
+          max-height: 297mm !important;
         }
         
         * {
@@ -335,7 +391,7 @@ function Create() {
             <ArrowLeft size={18} />
             <span>Retour</span>
           </Link>
-          <h1 className="text-lg sm:text-xl font-bold text-white">Mon CV Professionnel</h1>
+          <h1 className="text-lg sm:text-xl font-bold text-white">CV.CRAFT</h1>
           <button 
             onClick={resetCV}
             className="text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-1 rounded border border-red-500/20 transition-colors"
@@ -480,16 +536,34 @@ function Create() {
 
         {/* Zone du conteneur A4 : scroll horizontal automatique si l'écran est plus petit que le format A4 (595px) */}
         <div className="w-full overflow-x-auto pb-4 flex justify-start md:justify-center class-preview-scroll scrollbar-hide">
-          <div ref={componentRef} id="cv-preview" className="w-[595px] min-w-[595px] print:max-w-none print:w-[210mm] print:h-[297mm] print:shadow-none bg-white shadow-2xl my-2">
-            {cvData.theme.template === 'modern' && <ModernTemplate data={cvData} />}
-            {cvData.theme.template === 'classic' && <ClassicTemplate data={cvData} />}
-            {cvData.theme.template === 'tech' && <TechTemplate data={cvData} />}
-            {cvData.theme.template === 'benjamin' && <BenjaminTemplate data={cvData} />}
-            {cvData.theme.template === 'designer' && <DesignerTemplate data={cvData} />}
-            {cvData.theme.template === 'futuristic' && <FuturisticTemplate data={cvData} />}
-            {cvData.theme.template === 'Arch' && <ArchTemplate data={cvData} />}
-            {cvData.theme.template === 'Minimalist' && <MinimalistGreyTemplate data={cvData} />}
-            {cvData.theme.template === 'Classic' && <ClassicBlueTemplate data={cvData} />}
+          <div 
+            ref={componentRef} 
+            id="cv-preview" 
+            className="w-[595px] min-w-[595px] print:max-w-none print:w-[210mm] print:h-[297mm] print:shadow-none bg-white shadow-2xl my-2 relative flex flex-col justify-between"
+            style={{ minHeight: '297mm' }} // S'assure que la boîte fait toute la hauteur A4
+          >
+            {/* 1. Contenu principal du CV */}
+            <div className="flex-1">
+              {cvData.theme.template === 'modern' && <ModernTemplate data={cvData} />}
+              {cvData.theme.template === 'classic' && <ClassicTemplate data={cvData} />}
+              {cvData.theme.template === 'tech' && <TechTemplate data={cvData} />}
+              {cvData.theme.template === 'benjamin' && <BenjaminTemplate data={cvData} />}
+              {cvData.theme.template === 'designer' && <DesignerTemplate data={cvData} />}
+              {cvData.theme.template === 'futuristic' && <FuturisticTemplate data={cvData} />}
+              {cvData.theme.template === 'Arch' && <ArchTemplate data={cvData} />}
+              {cvData.theme.template === 'Minimalist' && <MinimalistGreyTemplate data={cvData} />}
+              {cvData.theme.template === 'Classic' && <ClassicBlueTemplate data={cvData} />}
+            </div>
+
+            {/* 2. Filigrane intelligent : affiché UNIQUEMENT pour le plan Free */}
+            {userPlan.toLowerCase() === 'free' && (
+              <div className="w-full text-center py-2 bg-slate-50 border-t border-slate-200/60 text-[10px] text-slate-400 font-medium tracking-wide flex items-center justify-center gap-1.5 print:bg-slate-50 print:border-t">
+                <span>Généré gratuitement avec</span>
+                <span className="font-bold text-blue-600 tracking-tight flex items-center gap-0.5">
+                  CV.Craft
+                </span>
+              </div>
+            )}
           </div>
         </div>
       </div>

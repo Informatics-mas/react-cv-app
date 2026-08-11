@@ -19,6 +19,8 @@
     "express": "^5.2.1",
     "fedapay": "^1.2.5",
     "multer": "^2.1.1",
+    "node-cron": "^4.2.1",
+    "nodemailer": "^8.0.10",
     "pdf-parse": "^2.4.5"
   }
 }

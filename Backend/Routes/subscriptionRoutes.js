@@ -1,7 +1,8 @@
 import express from "express";
 import Subscription from "../Models/subscriptions.js";
 import Plans from "../Models/plans.js"; 
-import User from "../Models/user.js"; // 👈 1. IMPORT OBLIGATOIRE DU MODÈLE USER
+import User from "../Models/user.js"; 
+import { sendPlanConfirmationEmail } from '../utils/emailService.js'; // Importation du service d'email
 import { protect } from "../Middleware/AuthMiddleware.js";
 
 const router = express.Router();
@@ -58,6 +59,12 @@ router.post("/subscribe", protect, async (req, res) => {
     const mongoose = await import("mongoose");
     const userId = new mongoose.Types.ObjectId(userIdStr);
 
+    // 1. Récupérer les informations complètes de l'utilisateur (requis pour son email et son nom)
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({ message: "Utilisateur introuvable." });
+    }
+
     // 2. Récupérer les détails du plan pour calculer la date de fin
     const planDef = await Plans.findById(planId);
     if (!planDef) {
@@ -90,7 +97,7 @@ router.post("/subscribe", protect, async (req, res) => {
     });
     await newSubscription.save();
 
-    // 🔥 6. DEUXIÈME CORRECTION CRUCIALE : METTRE À JOUR L'UTILISATEUR DANS LA COLLECTION USERS 🔥
+    // 6. METTRE À JOUR L'UTILISATEUR DANS LA COLLECTION USERS
     // On synchronise directement son profil en base de données pour que le login et le /me renvoient les bonnes infos !
     await User.findByIdAndUpdate(userId, {
       $set: {
@@ -102,9 +109,24 @@ router.post("/subscribe", protect, async (req, res) => {
 
     console.log(`✅ Plan [${planDef.name}] appliqué avec succès au profil de l'user: ${userId}`);
 
+    // 🔥 7. ENVOI DE L'EMAIL DE CONFIRMATION DE CHOIX DE PLAN 🔥
+    // On regroupe les détails nécessaires demandés par le template d'email
+    const emailPlanDetails = {
+      name: planDef.name,
+      maxDownloads: planDef.maxDownloads || 5,
+      duree: planDef.duree,
+      price: planDef.price
+    };
+
+    // On déclenche l'envoi en arrière-plan sans bloquer la requête HTTP de l'utilisateur
+    sendPlanConfirmationEmail(user.email, user.name, emailPlanDetails)
+      .then(() => console.log(`✉️ Email de confirmation de plan envoyé à ${user.email}`))
+      .catch((err) => console.error("❌ Échec de l'envoi de l'email de confirmation de plan :", err));
+
+    // 8. Réponse au client
     res.status(201).json({
       success: true,
-      message: `Abonnement au plan ${planDef.name} activé avec succès.`,
+      message: `Abonnement au plan ${planDef.name} activé avec succès et e-mail envoyé.`,
       subscription: newSubscription
     });
 

@@ -8,6 +8,14 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { Server } from "socket.io";
 import http from "http";
+import cron from 'node-cron';
+
+// --- IMPORTS DES MODÈLES ---
+import User from './Models/user.js'; 
+import Subscription from './Models/subscriptions.js';
+
+// --- IMPORTS DES SERVICES ---
+import { sendExpirationWarningEmail } from './utils/emailService.js';
 
 // --- CONFIGURATION DES CHEMINS ---
 const __filename = fileURLToPath(import.meta.url);
@@ -79,7 +87,6 @@ const connectDB = async () => {
 };
 connectDB();
 
-
 // ========================================================
 // --- BRANCHEMENT ET REGROUPEMENT DE TOUTES LES ROUTES API ---
 // ========================================================
@@ -90,7 +97,7 @@ app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/plans", planRoutes);
 
-// --- LA ROUTE PARSE-CV PLACÉE PROPREMENT ICI ---
+// --- ROUTE PARSE-CV (REMISE AVEC TON PROMPT COMPLET) ---
 app.post("/api/parse-cv", upload.single("cv_file"), async (req, res) => {
   try {
     console.log("=== DEBUT DU TRAITEMENT DU CV ===");
@@ -113,6 +120,7 @@ app.post("/api/parse-cv", upload.single("cv_file"), async (req, res) => {
     // Sélection du modèle flash rapide et optimisé pour le processing documentaire binaire
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
+    // RESTAURATION DE TON PROMPT D'ORIGINE COMPLET 🔥
     const prompt = `
       Tu es un expert en recrutement et un système d'extraction de données de CV hautement qualifié.
       Analyse attentivement le document PDF joint (qui est un CV) et extrait TOUTES les informations textuelles disponibles.
@@ -170,10 +178,9 @@ app.post("/api/parse-cv", upload.single("cv_file"), async (req, res) => {
     
     return res.json(cleanJson);
 
-  }catch (error) {
+  } catch (error) {
     console.error("❌ Erreur critique lors du traitement Gemini :", error);
     
-    // Si Google renvoie une surcharge
     if (error.status === 503) {
       return res.status(503).json({ 
         error: "Les serveurs de l'IA sont temporairement surchargés. Veuillez réessayer dans quelques instants." 
@@ -187,7 +194,6 @@ app.post("/api/parse-cv", upload.single("cv_file"), async (req, res) => {
 // Route administrative pour reset
 app.post("/api/admin/reset-edition", protect, async (req, res) => {
   try {
-    // Ta logique de reset existante...
     res.json({ success: true, message: "L'édition a été réinitialisée ! 🚀" });
   } catch (error) {
     res.status(500).json({ success: false, message: "Erreur lors du reset." });
@@ -199,7 +205,48 @@ app.get("/", (req, res) => {
   res.send("🚀 API CV.CRAFT CONNECTÉ ET OPÉRATIONNELLE ✅");
 });
 
-// Middleware Global Catch-All pour les routes non trouvées (Placé TOUT EN BAS)
+// --- CRON JOB : PRÉVENTION J-7 AVANT EXPIRATION ---
+cron.schedule('0 1 * * *', async () => {
+  console.log("⏰ TÂCHE CRON : Vérification des abonnements expirant à J-7...");
+
+  try {
+    const today = new Date();
+    
+    const targetDateStart = new Date();
+    targetDateStart.setDate(today.getDate() + 7);
+    targetDateStart.setHours(0, 0, 0, 0);
+
+    const targetDateEnd = new Date();
+    targetDateEnd.setDate(today.getDate() + 7);
+    targetDateEnd.setHours(23, 59, 59, 999);
+
+    const subscriptionsToWarn = await Subscription.find({
+      endDate: {
+        $gte: targetDateStart,
+        $lte: targetDateEnd
+      },
+      status: 'active'
+    }).populate("userId").populate("planId");
+
+    console.log(`✉️ ${subscriptionsToWarn.length} abonnement(s) expire(nt) dans 7 jours.`);
+
+    for (const sub of subscriptionsToWarn) {
+      if (!sub.userId || !sub.planId) continue;
+
+      if (sub.planId.name.toLowerCase() === 'gratuit' || sub.planId.name.toLowerCase() === 'free') {
+        continue;
+      }
+
+      await sendExpirationWarningEmail(sub.userId.email, sub.userId.name, sub.planId.name);
+      console.log(`[Notification J-7 envoyée] 📬 Mail envoyé à ${sub.userId.email} pour le plan ${sub.planId.name}`);
+    }
+
+  } catch (error) {
+    console.error("❌ Erreur lors de l'exécution de la tâche Cron J-7 :", error);
+  }
+});
+
+// Middleware Global Catch-All pour les routes non trouvées
 app.use((req, res) => {
   res.status(404).json({ message: "Route introuvable sur le serveur API." });
 });

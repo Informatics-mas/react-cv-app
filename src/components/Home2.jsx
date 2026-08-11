@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   FileText, 
@@ -12,24 +12,32 @@ import {
   CreditCard,
   PlusCircle,
   DownloadCloud,
-  CheckCircle2
+  CheckCircle2,
+  ChevronDown,
+  Bell,
+  MessageSquare
 } from 'lucide-react';
 
 function Home2() {
   const navigate = useNavigate();
   
   // États synchronisés avec l'API en direct
+  const [userName, setUserName] = useState(''); // Contient le nom de l'utilisateur
   const [userPlan, setUserPlan] = useState('Gratuit');
   const [allowedLimit, setAllowedLimit] = useState(5);
   const [downloadCount, setDownloadCount] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Gestion du menu déroulant (Dropdown profil)
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
   // --- RECUPERATION DU STATUT EN TEMPS REEL ---
   useEffect(() => {
-    let isMounted = true; // Empêche les fuites de mémoire et les conflits de rafraîchissement
+    let isMounted = true;
 
     const fetchUserProfile = async () => {
-      const token = localStorage.getItem("token"); // Lit la bonne clé globale
+      const token = localStorage.getItem("token");
       
       if (!token) {
         console.log("Aucun token trouvé, redirection...");
@@ -49,18 +57,18 @@ function Home2() {
         if (response.ok && isMounted) {
           const userData = await response.json();
           
+          // Récupération et sauvegarde des données de l'utilisateur
+          setUserName(userData.name || ''); 
           setUserPlan(userData.user_plan || 'Gratuit');
           setAllowedLimit(userData.user_max_downloads || 5);
           
           localStorage.setItem('user_plan', userData.user_plan || 'Gratuit');
           localStorage.setItem('user_max_downloads', userData.user_max_downloads || 5);
         } else if ((response.status === 401 || response.status === 403) && isMounted) {
-          // On ne déconnecte que si le token est explicitement invalide/expiré
           handleLogout();
         }
       } catch (error) {
         console.error("Erreur réseau lors du fetch /me :", error);
-        // Optionnel : ne pas déconnecter en cas de simple coupure réseau pour éviter les boucles
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -72,12 +80,23 @@ function Home2() {
     fetchUserProfile();
 
     return () => {
-      isMounted = false; // Nettoyage lors du démontage du composant
+      isMounted = false;
     };
+  }, [navigate]);
+
+  // Fermer le menu déroulant si on clique en dehors
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleLogout = () => {
-    localStorage.clear(); // 👑 Nettoie l'intégralité du stockage pour éviter les conflits entre comptes
+    localStorage.clear();
     window.location.href = "/"; 
   };
 
@@ -95,65 +114,125 @@ function Home2() {
   return (
     <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
       
-      {/* --- BANDEAU DE NAVIGATION --- */}
-      <nav className="w-full border-b border-slate-800/80 bg-[#0f172a]/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex justify-between items-center p-5 max-w-7xl mx-auto">
-          <Link to="/" className="flex items-center gap-2.5 hover:opacity-90 transition-opacity">
-            <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-600/20">
-              <FileText size={22} className="text-white" />
+      {/* --- BANDEAU DE NAVIGATION SOMBRE & INTERACTIF --- */}
+      <nav className="w-full border-b border-slate-800/80 bg-[#0f172a]/90 backdrop-blur-md sticky top-0 z-50">
+        <div className="flex justify-between items-center px-4 sm:px-6 py-4 max-w-7xl mx-auto gap-4">
+          
+          {/* Logo */}
+          <Link to="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
+            <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-600/20">
+              <FileText size={20} />
             </div>
-            <span className="text-xl font-bold tracking-tight bg-gradient-to-r from-white to-slate-300 bg-clip-text text-transparent">
-              CV.Craft
+            <span className="text-base sm:text-lg font-black tracking-tighter uppercase bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
+              CV.<span className="text-blue-500">Craft</span>
             </span>
           </Link>
 
-          <div className="flex items-center gap-4">
-            <div className={`hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold border ${
-              userPlan.toLowerCase() === 'gratuit' || userPlan.toLowerCase() === 'free'
-                ? 'bg-slate-800/50 text-slate-400 border-slate-700/60' 
-                : 'bg-amber-500/10 text-amber-400 border-amber-500/30'
-            }`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${userPlan.toLowerCase() === 'gratuit' || userPlan.toLowerCase() === 'free' ? 'bg-slate-400' : 'bg-amber-400'}`}></span>
-              Plan {userPlan}
-            </div>
-
-            <Link 
-              to="/Plans" 
-              className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700/80 px-4 py-2 rounded-xl text-sm font-medium border border-slate-700 transition-all text-slate-200"
-            >
-              <CreditCard size={15} />
-              <span>Mon Plan</span>
-            </Link>
-
+          {/* Profil et Actions Droite */}
+          <div className="flex items-center gap-2 sm:gap-4">
+            
+            {/* Raccourci vers les Modèles */}
             <Link 
               to="/Models" 
-              className="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded-xl font-bold text-sm shadow-md shadow-blue-600/10 transition-all text-white flex items-center gap-1"
+              className="hidden sm:flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white transition-all"
             >
-              Modèles
+              <LayoutTemplate size={14} className="text-blue-500" />
+              <span>Modèles</span>
             </Link>
 
-            <button 
-              onClick={handleLogout}
-              className="p-2 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white rounded-xl border border-red-500/20 transition-all"
-              title="Déconnexion"
-            >
-              <LogOut size={16} /> 
-            </button>
+            {/* Menu Déroulant Profil */}
+            <div className="relative" ref={dropdownRef}>
+              <button 
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-1 focus:outline-none group text-slate-300 hover:text-white p-1 rounded-xl transition-colors"
+              >
+                <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 group-hover:border-blue-500 group-hover:text-white transition-all">
+                  <User size={16} className="stroke-[2.5]" />
+                </div>
+                <ChevronDown size={14} className={`text-slate-500 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Contenu du Dropdown */}
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-3 w-64 bg-[#1e293b] border border-slate-700/80 rounded-2xl shadow-2xl py-2 z-50 text-slate-200 animate-in fade-in slide-in-from-top-2 duration-150">
+                  
+                  {/* Offre en-tête */}
+                  <div className="px-4 py-3 border-b border-slate-700/60 bg-slate-900/40 rounded-t-2xl">
+                    <p className="text-[9px] uppercase font-bold tracking-wider text-slate-500">Mon offre</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs font-bold text-slate-300">Formule actuelle</span>
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                        userPlan.toLowerCase() === 'gratuit' || userPlan.toLowerCase() === 'free' 
+                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' 
+                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      }`}>
+                        {userPlan}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quotas restants */}
+                  <div className="px-4 py-3 border-b border-slate-700/60 text-xs text-slate-400 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <DownloadCloud size={14} className="text-blue-400" />
+                      <span>Téléchargements</span>
+                    </div>
+                    <span className="font-bold text-white">
+                      {allowedLimit - downloadCount} <span className="text-slate-500 font-normal">/ {allowedLimit} restants</span>
+                    </span>
+                  </div>
+
+                  {/* Liens du Menu */}
+                  <div className="py-1.5">
+                    <Link 
+                      to="/Models" 
+                      onClick={() => setDropdownOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
+                    >
+                      <LayoutTemplate size={15} className="text-slate-500" />
+                      <span>Parcourir les modèles</span>
+                    </Link>
+                    <Link 
+                      to="/Plans" 
+                      onClick={() => setDropdownOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
+                    >
+                      <CreditCard size={15} className="text-slate-500" />
+                      <span>Changer de formule</span>
+                    </Link>
+                  </div>
+
+                  {/* Bouton de Déconnexion */}
+                  <div className="border-t border-slate-700/60 pt-1.5 mt-1">
+                    <button 
+                      onClick={() => { setDropdownOpen(false); handleLogout(); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 font-medium transition-colors text-left"
+                    >
+                      <LogOut size={15} />
+                      <span>Déconnexion</span>
+                    </button>
+                  </div>
+
+                </div>
+              )}
+            </div>
+
           </div>
         </div>
       </nav>
 
-      {/* --- TABLEAU DE BORD UTILSATEUR --- */}
-      <main className="max-w-7xl mx-auto px-6 py-12 lg:py-20 w-full flex-1">
+      {/* --- TABLEAU DE BORD UTILISATEUR --- */}
+      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-12 lg:py-20 flex-grow">
         
-        <div className="bg-gradient-to-r from-slate-900 via-[#1e293b]/40 to-slate-900 border border-slate-800 rounded-3xl p-6 md:p-8 mb-12 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+        <div className="bg-gradient-to-r from-slate-900 via-[#1e293b]/40 to-slate-900 border border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 md:p-8 mb-12 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-blue-400 font-medium text-sm">
               <User size={16} />
               <span>Espace Membre</span>
             </div>
+            {/* Ligne d'accueil modifiée ici */}
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
-              Ravi de vous revoir sur CV.Craft ! 👋
+              Ravi de vous revoir sur CV.Craft{userName ? `, ${userName}` : ''} ! 👋
             </h1>
             <p className="text-slate-400 text-sm max-w-xl">
               Prêt à propulser votre carrière ? Créez un nouveau modèle ou mettez à jour vos données actuelles en quelques clics.
@@ -275,8 +354,8 @@ function Home2() {
       </main>
 
       {/* --- FOOTER --- */}
-      <footer className="bg-[#0b0f19] border-t border-slate-900 pt-16 pb-8 text-sm">
-        <div className="max-w-7xl mx-auto px-6">
+      <footer className="bg-[#0b0f19] border-t border-slate-900 pt-16 pb-8 text-sm mt-auto">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
             <div className="space-y-4">
               <div className="flex items-center gap-2">

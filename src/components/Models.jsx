@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   FileText, 
@@ -11,12 +11,18 @@ import {
   CheckCircle2,
   User,
   LogOut,
-  DownloadCloud
+  DownloadCloud,
+  ChevronDown,
+  Bell,
+  MessageSquare
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 
 function Models() {
   const navigate = useNavigate();
+  
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
   // Récupération du plan actuel de l'utilisateur
   const [userPlan] = useState(() => {
@@ -30,6 +36,17 @@ function Models() {
   const [downloadCount] = useState(() => {
     return parseInt(localStorage.getItem('download_count') || '0', 10);
   });
+
+  // Fermer le menu déroulant si on clique en dehors
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   // Définition de la hiérarchie des plans pour restreindre les accès
   const planHierarchy = { 'Free': 1, 'Basic': 2, 'Premium': 3 };
@@ -94,8 +111,8 @@ function Models() {
   return (
     <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
       
-      {/* --- BANDEAU DE NAVIGATION TYPIQUE --- */}
-      <nav className="w-full border-b border-slate-900 bg-[#0f172a]/80 backdrop-blur-md sticky top-0 z-50">
+      {/* --- BANDEAU DE NAVIGATION SOMBRE & INTERACTIF --- */}
+      <nav className="w-full border-b border-slate-800/80 bg-[#0f172a]/90 backdrop-blur-md sticky top-0 z-50">
         <div className="flex justify-between items-center px-4 sm:px-6 py-4 max-w-7xl mx-auto gap-4">
           
           {/* Logo */}
@@ -108,42 +125,76 @@ function Models() {
             </span>
           </Link>
 
-          {/* Profil et Compteurs */}
-          <div className="flex items-center gap-3 sm:gap-6">
-            
-            {/* Offre */}
-            <div className="hidden xs:flex flex-col items-end border-r border-slate-800/80 pr-3 sm:pr-4">
-              <span className="text-[9px] uppercase font-black tracking-widest text-slate-500">Mon offre</span>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`w-1.5 h-1.5 rounded-full ${userPlan === 'Free' ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`}></span>
-                <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wide text-slate-200">{userPlan}</span>
-              </div>
-            </div>
+          {/* Profil et Actions Droite */}
+          <div className="flex items-center gap-2 sm:gap-4">
 
-            {/* Quotas */}
-            <div className="hidden sm:flex items-center gap-2 bg-slate-900/60 border border-slate-800/60 px-3 py-1.5 rounded-xl">
-              <DownloadCloud size={13} className="text-blue-400" />
-              <span className="text-xs font-bold text-slate-300">
-                {allowedLimit - downloadCount} <span className="text-slate-500 font-medium">/ {allowedLimit} restants</span>
-              </span>
-            </div>
-
-            {/* Menu Actions */}
-            <div className="flex items-center gap-1.5 bg-slate-900/40 p-1 rounded-xl border border-slate-800/40">
-              <Link 
-                to={getBackPath()} 
-                className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all flex items-center gap-1.5 text-xs font-bold"
-              >
-                <User size={14} /> <span className="hidden md:inline">Mon Espace</span>
-              </Link>
+            {/* Menu Déroulant Profil */}
+            <div className="relative" ref={dropdownRef}>
               <button 
-                onClick={handleLogout}
-                className="p-2 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white rounded-lg transition-all"
-                title="Déconnexion"
+                onClick={() => setDropdownOpen(!dropdownOpen)}
+                className="flex items-center gap-1 focus:outline-none group text-slate-300 hover:text-white p-1 rounded-xl transition-colors"
               >
-                <LogOut size={14} />
+                <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 group-hover:border-blue-500 group-hover:text-white transition-all">
+                  <User size={16} className="stroke-[2.5]" />
+                </div>
+                <ChevronDown size={14} className={`text-slate-500 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
               </button>
+
+              {/* Contenu de la boîte de dialogue (Dropdown) */}
+              {dropdownOpen && (
+                <div className="absolute right-0 mt-3 w-64 bg-[#1e293b] border border-slate-700/80 rounded-2xl shadow-2xl py-2 z-50 text-slate-200 animate-in fade-in slide-in-from-top-2 duration-150">
+                  
+                  {/* Offre en-tête */}
+                  <div className="px-4 py-3 border-b border-slate-700/60 bg-slate-900/40 rounded-t-2xl">
+                    <p className="text-[9px] uppercase font-bold tracking-wider text-slate-500">Mon offre</p>
+                    <div className="flex items-center justify-between mt-1">
+                      <span className="text-xs font-bold text-slate-300">Formule actuelle</span>
+                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                        userPlan === 'Free' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                      }`}>
+                        {userPlan}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Quotas restants */}
+                  <div className="px-4 py-3 border-b border-slate-700/60 text-xs text-slate-400 flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5">
+                      <DownloadCloud size={14} className="text-blue-400" />
+                      <span>Téléchargements</span>
+                    </div>
+                    <span className="font-bold text-white">
+                      {allowedLimit - downloadCount} <span className="text-slate-500 font-normal">/ {allowedLimit} restants</span>
+                    </span>
+                  </div>
+
+                  {/* Liens du Menu */}
+                  <div className="py-1.5">
+                    <Link 
+                      to={getBackPath()} 
+                      onClick={() => setDropdownOpen(false)}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
+                    >
+                      <User size={15} className="text-slate-500" />
+                      <span>Mon Espace</span>
+                    </Link>
+                  </div>
+
+                  {/* Bouton de Déconnexion */}
+                  <div className="border-t border-slate-700/60 pt-1.5 mt-1">
+                    <button 
+                      onClick={() => { setDropdownOpen(false); handleLogout(); }}
+                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 font-medium transition-colors text-left"
+                    >
+                      <LogOut size={15} />
+                      <span>Déconnexion</span>
+                    </button>
+                  </div>
+
+                </div>
+              )}
             </div>
+
           </div>
         </div>
       </nav>

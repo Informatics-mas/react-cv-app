@@ -2,29 +2,38 @@ import express from "express";
 import Subscription from "../Models/subscriptions.js";
 import Plans from "../Models/plans.js"; 
 import User from "../Models/user.js"; 
-import { sendPlanConfirmationEmail } from '../utils/emailService.js'; // Importation du service d'email
-import { protect } from "../Middleware/AuthMiddleware.js";
+import { sendPlanConfirmationEmail } from '../utils/emailService.js'; 
+import { protect, adminOnly } from "../Middleware/AuthMiddleware.js"
+import { z } from "zod"
 
 const router = express.Router();
 
-// @desc    Récupérer tous les abonnements (avec détails User et Plan)
-// @route   GET /api/subscriptions
-router.get("/", protect, async (req, res) => {
+const subscribeSchema = z.object({
+  planId: z.string().length(24, "L'ID du plan doit être un ObjectId valide"),
+  paymentMethod: z.string().optional(),
+  details: z.any().optional()
+});
+
+router.get("/", protect, adminOnly, async (req, res) => {
   try {
+    const limit = parseInt(req.query.limit) || 100;
+
     const subscriptions = await Subscription.find({})
       .populate("userId", "name email") 
       .populate("planId", "name price") 
-      .sort({ createdAt: -1 });
+      .sort({ createdAt: -1 })
+      .limit(limit); // Application de la limite
+      
     res.json(subscriptions);
   } catch (error) {
     res.status(500).json({ message: "Erreur lors de la récupération des abonnements" });
   }
 });
 
-// @desc    Mettre à jour un abonnement (Statut, Date de fin, etc.)
-// @route   PUT /api/subscriptions/:id
-router.put("/:id", protect, async (req, res) => {
+router.put("/:id", protect, adminOnly, async (req, res) => {
   try {
+    const validation = updateSubSchema.safeParse(req.body);
+    if (!validation.success) return res.status(400).json({ message: "Données invalides" });
     const { status, endDate, autoRenew } = req.body;
     const subscription = await Subscription.findById(req.params.id);
 
@@ -43,13 +52,14 @@ router.put("/:id", protect, async (req, res) => {
   }
 });
 
-// @desc    Créer ou basculer sur un nouvel abonnement (Gratuit ou Payant)
-// @route   POST /api/subscriptions/subscribe
 router.post("/subscribe", protect, async (req, res) => {
   try {
-    const { planId, paymentMethod, details } = req.body;
+    const validation = subscribeSchema.safeParse(req.body);
+    if (!validation.success) {
+      return res.status(400).json({ message: "Données invalides", errors: validation.error.errors });
+    }
+   const { planId, paymentMethod, details } = validation.data;
     
-    // Récupération sécurisée de l'ID utilisateur injecté par le middleware protect
     const userIdStr = req.user.id || req.user._id; 
 
     if (!userIdStr) {
@@ -59,24 +69,20 @@ router.post("/subscribe", protect, async (req, res) => {
     const mongoose = await import("mongoose");
     const userId = new mongoose.Types.ObjectId(userIdStr);
 
-    // 1. Récupérer les informations complètes de l'utilisateur (requis pour son email et son nom)
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({ message: "Utilisateur introuvable." });
     }
 
-    // 2. Récupérer les détails du plan pour calculer la date de fin
     const planDef = await Plans.findById(planId);
     if (!planDef) {
       return res.status(404).json({ message: "Plan introuvable." });
     }
 
-    // 3. Calculer la date de fin (Date d'aujourd'hui + durée du plan en jours)
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + planDef.duree);
 
-    // 4. Mettre à jour les anciennes souscriptions de l'utilisateur (si elles existent)
     try {
       await Subscription.updateMany(
         { userId: userId, status: 'active' },
@@ -86,7 +92,6 @@ router.post("/subscribe", protect, async (req, res) => {
       console.warn("⚠️ Attention : Impossible de mettre à jour les anciens plans :", updateError.message);
     }
 
-    // 5. Créer la nouvelle souscription active dans la collection Subscriptions
     const newSubscription = new Subscription({
       userId,
       planId,
@@ -97,20 +102,15 @@ router.post("/subscribe", protect, async (req, res) => {
     });
     await newSubscription.save();
 
-    // 6. METTRE À JOUR L'UTILISATEUR DANS LA COLLECTION USERS
-    // On synchronise directement son profil en base de données pour que le login et le /me renvoient les bonnes infos !
-    await User.findByIdAndUpdate(userId, {
+   await User.findByIdAndUpdate(userId, {
       $set: {
-        role: planDef.name.toLowerCase() === "premium" ? "premium" : "user",
         user_plan: planDef.name, 
-        user_max_downloads: planDef.maxDownloads || 50 // Donne les droits associés au plan
+        user_max_downloads: planDef.maxDownloads || 50 
       }
     });
 
     console.log(`✅ Plan [${planDef.name}] appliqué avec succès au profil de l'user: ${userId}`);
 
-    // 🔥 7. ENVOI DE L'EMAIL DE CONFIRMATION DE CHOIX DE PLAN 🔥
-    // On regroupe les détails nécessaires demandés par le template d'email
     const emailPlanDetails = {
       name: planDef.name,
       maxDownloads: planDef.maxDownloads || 5,
@@ -118,12 +118,10 @@ router.post("/subscribe", protect, async (req, res) => {
       price: planDef.price
     };
 
-    // On déclenche l'envoi en arrière-plan sans bloquer la requête HTTP de l'utilisateur
     sendPlanConfirmationEmail(user.email, user.name, emailPlanDetails)
       .then(() => console.log(`✉️ Email de confirmation de plan envoyé à ${user.email}`))
       .catch((err) => console.error("❌ Échec de l'envoi de l'email de confirmation de plan :", err));
 
-    // 8. Réponse au client
     res.status(201).json({
       success: true,
       message: `Abonnement au plan ${planDef.name} activé avec succès et e-mail envoyé.`,

@@ -43,13 +43,12 @@ export default function Login() {
       const data = await res.json();
 
       if (res.ok && data.token) {
-        // 🔥 CHANGEMENT ICI : On utilise "token" pour tout le monde
-        localStorage.setItem("token", data.token);
-        localStorage.setItem("userRole", data.user.role); 
+       const storage = window.localStorage;
+        storage.setItem("token", data.token);
+        storage.setItem("userRole", data.user.role); 
 
-        const userRole = data.user?.role?.toLowerCase();
-        
-        if (userRole === "admin") {
+       const isAdmin = String(data.user?.role) === 'admin';
+        if (isAdmin) {
           navigate("/Admin");
         } else {
           const origin = location.state?.from?.pathname || "/Home";
@@ -68,21 +67,10 @@ export default function Login() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#131b2e] bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#1a2e5a] via-[#0B1A3B] to-black p-4">
       
-      <nav className="w-full sticky top-0 z-50">
-          <div className="flex justify-between items-center p-6 max-w-7xl mx-auto">
-            <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-              <div className="bg-blue-600 p-2 rounded-lg">
-                <FileText size={24} />
-              </div>
-              <span className="text-xl text-white font-bold tracking-tight">CV.Craft</span>
-            </Link>
-            
-            <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium">
-              <ArrowLeft size={16} />
-              Retour à l'accueil
-            </Link>
-          </div>
-        </nav>
+      <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium mb-6">
+                  <ArrowLeft size={16} />
+                  Retour à l'accueil
+                </Link>
 
       <div className="w-full max-w-md animate-fadeIn">
         <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">

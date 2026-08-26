@@ -143,9 +143,7 @@ export const sendPlanConfirmationEmail = async (userEmail, userName, planDetails
   }
 };
 
-/**
- * 3. EMAIL DE PRÉVENTION À J-7 AVANT EXPIRATION
- */
+
 export const sendExpirationWarningEmail = async (userEmail, userName, planName) => {
   try {
     const renewUrl = `${process.env.VITE_CLIENT_URL || 'http://localhost:5173'}/plans`;

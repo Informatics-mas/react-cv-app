@@ -44,15 +44,11 @@ function Adminhome() {
   }, []);
 
   const handleLogout = () => {
-    // 1. Nettoyage complet des traces de session
     localStorage.removeItem("token");
     localStorage.removeItem("userRole"); 
     
-    // 2. Redirection forcée vers le login
-    // On utilise replace: true pour que l'utilisateur ne puisse pas faire "retour"
     navigate("/login", { replace: true });
     
-    // Optionnel : force le rechargement pour réinitialiser tous les états React
     window.location.reload();
   };
 
@@ -62,18 +58,16 @@ function Adminhome() {
     const fetchDashboardData = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/users`, {
+       const res = await fetch(`${import.meta.env.VITE_API_URL}/users`, {
           headers: { Authorization: `Bearer ${token}` }
         });
       
         const data = await res.json();
-      
-        // Vérification : est-ce que 'data' est bien un tableau ?
         if (res.ok && Array.isArray(data)) {
           setRecentUsers(data.slice(0, 4));
         } else {
           console.error("Le serveur n'a pas renvoyé un tableau :", data);
-          setRecentUsers([]); // On met un tableau vide par défaut
+          setRecentUsers([]);
         }
       } catch (err) {
         console.error("Erreur chargement utilisateurs récents:", err);
@@ -91,15 +85,11 @@ function Adminhome() {
         
         {/* LOGO SECTION */}
         <div className="p-6">
-          <Link to="/admin" className="flex items-center gap-3 group">
-            <div className="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-600/20 group-hover:scale-110 transition-transform">
-              <FileText size={22} className="text-white" />
-            </div>
+          <div className="flex items-center gap-3 group">
             <div>
-              <h1 className="text-lg font-black text-white leading-none tracking-tight">CV.CRAFT</h1>
               <span className="text-[10px] text-blue-500 font-bold uppercase tracking-widest">Admin Panel</span>
             </div>
-          </Link>
+          </div>
         </div>
 
         {/* MENU PRINCIPAL */}

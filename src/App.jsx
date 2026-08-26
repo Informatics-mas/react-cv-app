@@ -8,6 +8,12 @@ import Models from "./components/Models";
 import PlanCards from "./components/Plans";
 import Login from "./components/Pages/Login";
 import Signin from "./components/Pages/Sign_in";
+import Navbar from "./components/Pages/Navbar";
+import Privacy from './components/Pages/Privacy';
+import Terms from './components/Pages/Terms';
+import About from './components/Pages/About';
+import FAQ from './components/Pages/FAQ';
+import Footer from "./components/Pages/Footer";
 import Adminhome from "./components/Admin/Adminhome"
 import AdminPlans from './components/Admin/AdminPlans';
 import './styles/App.css';
@@ -15,6 +21,7 @@ import './styles/App.css';
 function App() {
   return (
     <BrowserRouter>
+      <Navbar />
       <Routes>
         {/* ROUTES PUBLIQUES */}
         <Route path="/" element={<Home />} />
@@ -23,6 +30,10 @@ function App() {
         <Route path="/Create" element={<Create />} />
         <Route path="/Models" element={<Models />} />
         <Route path="/Plan" element={<PlanCards />} />
+        <Route path="/FAQ" element={<FAQ />} />
+        <Route path="/privacy" element={<Privacy />} />
+        <Route path="/Terms" element={<Terms />} />
+        <Route path="/about" element={<About />} />
 
         {/* ROUTES UTILISATEURS CONNECTÉS */}
         <Route element={<ProtectedRoute allowedRoles={['user', 'admin']} />}>
@@ -41,6 +52,7 @@ function App() {
         {/* Si l'utilisateur tape une adresse inconnue, on le ramène à l'accueil */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
+      <Footer />
     </BrowserRouter>
   );
 }

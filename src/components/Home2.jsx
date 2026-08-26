@@ -100,127 +100,76 @@ function Home2() {
     window.location.href = "/"; 
   };
 
-  if (loading) {
+if (loading) {
     return (
-      <div className="min-h-screen bg-[#0f172a] flex items-center justify-center text-white">
-        <div className="flex flex-col items-center gap-3">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
-          <p className="text-slate-400 text-sm font-medium">Chargement de votre espace...</p>
-        </div>
+      <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
+        <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-12 lg:py-20 flex-grow animate-pulse">
+          
+          {/* Skeleton : Bandeau de bienvenue (Haut) */}
+          <div className="bg-slate-900/60 border border-slate-800/80 rounded-2xl sm:rounded-3xl p-6 md:p-8 mb-12 shadow-xl flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
+            <div className="space-y-4 w-full md:w-2/3">
+              {/* Badge "Espace Membre" */}
+              <div className="h-5 w-32 bg-slate-800 rounded-md"></div>
+              {/* Grand Titre */}
+              <div className="h-8 md:h-10 w-3/4 bg-slate-800 rounded-xl"></div>
+              {/* Paragraphe de description */}
+              <div className="space-y-2">
+                <div className="h-4 w-full max-w-xl bg-slate-800 rounded-md"></div>
+                <div className="h-4 w-2/3 max-w-xl bg-slate-800 rounded-md"></div>
+              </div>
+            </div>
+            {/* Bouton Créer CV */}
+            <div className="w-full md:w-auto">
+              <div className="h-12 w-full md:w-48 bg-slate-800 rounded-xl"></div>
+            </div>
+          </div>
+
+          {/* Skeleton : Les 3 Widgets (Plan, Quota, IA) */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
+            {[1, 2, 3].map((item) => (
+              <div key={item} className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6 flex flex-col justify-between h-56">
+                <div className="space-y-4">
+                  {/* Icone */}
+                  <div className="w-12 h-12 bg-slate-800 rounded-xl"></div>
+                  {/* Titre et sous-titre */}
+                  <div>
+                    <div className="h-5 w-2/3 bg-slate-800 rounded-md mb-2"></div>
+                    <div className="h-3 w-full bg-slate-800 rounded-md"></div>
+                  </div>
+                  {/* Valeur ou Barre de progression */}
+                  <div className="h-8 w-1/2 bg-slate-800 rounded-lg mt-4"></div>
+                </div>
+                {/* Lien du bas */}
+                <div className="h-3 w-1/3 bg-slate-800 rounded-md mt-6"></div>
+              </div>
+            ))}
+          </div>
+
+          {/* Skeleton : Section Fonctionnalités (Bas) */}
+          <div className="border-t border-slate-800/60 pt-16">
+            <div className="flex flex-col items-center mb-12 space-y-4">
+              <div className="h-8 w-64 bg-slate-800 rounded-xl"></div>
+              <div className="h-4 w-96 max-w-full bg-slate-800 rounded-md"></div>
+            </div>
+            <div className="grid md:grid-cols-3 gap-8">
+              {[1, 2, 3].map((item) => (
+                <div key={item} className="bg-slate-900/40 border border-slate-800/60 p-5 rounded-2xl space-y-4">
+                  <div className="w-11 h-11 bg-slate-800 rounded-xl"></div>
+                  <div className="h-5 w-2/3 bg-slate-800 rounded-md"></div>
+                  <div className="h-3 w-full bg-slate-800 rounded-md"></div>
+                  <div className="h-3 w-4/5 bg-slate-800 rounded-md"></div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </main>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
-      
-      {/* --- BANDEAU DE NAVIGATION SOMBRE & INTERACTIF --- */}
-      <nav className="w-full border-b border-slate-800/80 bg-[#0f172a]/90 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex justify-between items-center px-4 sm:px-6 py-4 max-w-7xl mx-auto gap-4">
-          
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
-            <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-600/20">
-              <FileText size={20} />
-            </div>
-            <span className="text-base sm:text-lg font-black tracking-tighter uppercase bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              CV.<span className="text-blue-500">Craft</span>
-            </span>
-          </Link>
-
-          {/* Profil et Actions Droite */}
-          <div className="flex items-center gap-2 sm:gap-4">
-            
-            {/* Raccourci vers les Modèles */}
-            <Link 
-              to="/Models" 
-              className="hidden sm:flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white transition-all"
-            >
-              <LayoutTemplate size={14} className="text-blue-500" />
-              <span>Modèles</span>
-            </Link>
-
-            {/* Menu Déroulant Profil */}
-            <div className="relative" ref={dropdownRef}>
-              <button 
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-1 focus:outline-none group text-slate-300 hover:text-white p-1 rounded-xl transition-colors"
-              >
-                <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 group-hover:border-blue-500 group-hover:text-white transition-all">
-                  <User size={16} className="stroke-[2.5]" />
-                </div>
-                <ChevronDown size={14} className={`text-slate-500 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {/* Contenu du Dropdown */}
-              {dropdownOpen && (
-                <div className="absolute right-0 mt-3 w-64 bg-[#1e293b] border border-slate-700/80 rounded-2xl shadow-2xl py-2 z-50 text-slate-200 animate-in fade-in slide-in-from-top-2 duration-150">
-                  
-                  {/* Offre en-tête */}
-                  <div className="px-4 py-3 border-b border-slate-700/60 bg-slate-900/40 rounded-t-2xl">
-                    <p className="text-[9px] uppercase font-bold tracking-wider text-slate-500">Mon offre</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs font-bold text-slate-300">Formule actuelle</span>
-                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
-                        userPlan.toLowerCase() === 'gratuit' || userPlan.toLowerCase() === 'free' 
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' 
-                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      }`}>
-                        {userPlan}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Quotas restants */}
-                  <div className="px-4 py-3 border-b border-slate-700/60 text-xs text-slate-400 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <DownloadCloud size={14} className="text-blue-400" />
-                      <span>Téléchargements</span>
-                    </div>
-                    <span className="font-bold text-white">
-                      {allowedLimit - downloadCount} <span className="text-slate-500 font-normal">/ {allowedLimit} restants</span>
-                    </span>
-                  </div>
-
-                  {/* Liens du Menu */}
-                  <div className="py-1.5">
-                    <Link 
-                      to="/Models" 
-                      onClick={() => setDropdownOpen(false)}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
-                    >
-                      <LayoutTemplate size={15} className="text-slate-500" />
-                      <span>Parcourir les modèles</span>
-                    </Link>
-                    <Link 
-                      to="/Plans" 
-                      onClick={() => setDropdownOpen(false)}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
-                    >
-                      <CreditCard size={15} className="text-slate-500" />
-                      <span>Changer de formule</span>
-                    </Link>
-                  </div>
-
-                  {/* Bouton de Déconnexion */}
-                  <div className="border-t border-slate-700/60 pt-1.5 mt-1">
-                    <button 
-                      onClick={() => { setDropdownOpen(false); handleLogout(); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 font-medium transition-colors text-left"
-                    >
-                      <LogOut size={15} />
-                      <span>Déconnexion</span>
-                    </button>
-                  </div>
-
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
-      </nav>
-
       {/* --- TABLEAU DE BORD UTILISATEUR --- */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-12 lg:py-20 flex-grow">
         
@@ -352,56 +301,6 @@ function Home2() {
           </div>
         </section>
       </main>
-
-      {/* --- FOOTER --- */}
-      <footer className="bg-[#0b0f19] border-t border-slate-900 pt-16 pb-8 text-sm mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="bg-blue-600 p-1.5 rounded-lg">
-                  <FileText size={18} />
-                </div>
-                <span className="text-lg font-bold tracking-tight">CV.Craft</span>
-              </div>
-              <p className="text-slate-400 text-xs leading-relaxed">
-                La plateforme ultime et intelligente pour structurer et créer des CV professionnels percutants.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-5 text-xs uppercase tracking-widest text-slate-300">Produit</h4>
-              <ul className="space-y-3 text-slate-400 text-xs">
-                <li><Link to="/Create" className="hover:text-white transition-colors">Créateur de CV</Link></li>
-                <li><Link to="/Models" className="hover:text-white transition-colors">Modèles de CV</Link></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-5 text-xs uppercase tracking-widest text-slate-300">Aide</h4>
-              <ul className="space-y-3 text-slate-400 text-xs">
-                <li><a href="#" className="hover:text-white transition-colors">FAQ</a></li>
-                <li><a href="mailto:ogouogoudavid@gmail.com" className="hover:text-white transition-colors">Support technique</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-5 text-xs uppercase tracking-widest text-slate-300">Contact</h4>
-              <div className="flex items-center gap-2 text-slate-400 text-xs">
-                <Mail size={14} className="text-slate-500" />
-                <span>ogouogoudavid@gmail.com</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-slate-900 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4">
-            <p className="text-slate-500 text-xs">© 2026 CV.Craft. Tous droits réservés.</p>
-            <p className="text-slate-500 text-xs flex items-center gap-1">
-              Fait avec <Heart size={12} className="text-red-500 fill-red-500" /> par Informatics
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

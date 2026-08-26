@@ -140,62 +140,6 @@ export default function Payment() {
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
-      
-      {/* --- BANDEAU DE NAVIGATION TYPIQUE --- */}
-      <nav className="w-full border-b border-slate-900 bg-[#0f172a]/80 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex justify-between items-center px-6 py-4 max-w-7xl mx-auto">
-          
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-600/20">
-              <FileText size={20} />
-            </div>
-            <span className="text-lg font-black tracking-tighter uppercase bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              CV.<span className="text-blue-500">Craft</span>
-            </span>
-          </Link>
-
-          {/* Section d'infos du plan utilisateur + Menu */}
-          <div className="flex items-center gap-4 sm:gap-6">
-            
-            {/* Infos Plan */}
-            <div className="hidden sm:flex flex-col items-end border-r border-slate-800/80 pr-4">
-              <span className="text-[10px] uppercase font-black tracking-widest text-slate-500">Mon offre</span>
-              <div className="flex items-center gap-1.5 mt-0.5">
-                <span className={`w-2 h-2 rounded-full ${userPlan === 'Gratuit' ? 'bg-amber-500' : 'bg-emerald-500 animate-pulse'}`}></span>
-                <span className="text-xs font-bold uppercase tracking-wide text-slate-200">{userPlan}</span>
-              </div>
-            </div>
-
-            {/* Quota Téléchargement */}
-            <div className="hidden md:flex items-center gap-2.5 bg-slate-900/60 border border-slate-800/60 px-3.5 py-2 rounded-xl">
-              <DownloadCloud size={14} className="text-blue-400" />
-              <span className="text-xs font-bold text-slate-300">
-                {allowedLimit - downloadCount} <span className="text-slate-500 font-medium">/ {allowedLimit} restants</span>
-              </span>
-            </div>
-
-            {/* Boutons Profil et Déconnexion */}
-            <div className="flex items-center gap-2 bg-slate-900/40 p-1.5 rounded-xl border border-slate-800/40">
-              <Link 
-                to={localStorage.getItem('token') ? '/Home' : '/UserHome'} 
-                className="p-2 hover:bg-slate-800 rounded-lg text-slate-400 hover:text-white transition-all flex items-center gap-2 text-xs font-bold"
-              >
-                <User size={15} /> <span className="hidden sm:inline">Mon Espace</span>
-              </Link>
-              <button 
-                onClick={handleLogout}
-                className="p-2 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white rounded-lg transition-all"
-                title="Déconnexion"
-              >
-                <LogOut size={15} />
-              </button>
-            </div>
-
-          </div>
-        </div>
-      </nav>
-
       {/* Barre de fil d'Ariane / Retour */}
       <div className="max-w-5xl w-full mx-auto px-6 pt-6">
         <Link to="/plans" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors">

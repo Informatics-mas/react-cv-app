@@ -1,5 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
+import Swal from 'sweetalert2';
+import { 
+  ArrowLeft, ArrowRight, User, GraduationCap, Download, Briefcase, 
+  Languages, Heart, Zap, Upload, Palette, RefreshCw, Trash2
+} from 'lucide-react';
+
+// --- Imports des composants formulaires ---
 import GeneralInfo from './Generalinfo';
 import Profile from './Profile'; 
 import Education from './Education';
@@ -7,6 +15,8 @@ import Experience from './Experience';
 import Hobbi from './hobbi'; 
 import Langue from './langue'; 
 import Skills from './skils'; 
+
+// --- Imports des Modèles ---
 import ModernTemplate from './models/ModernTemplate';
 import DesignerTemplate from './models/DesignerTemplate';
 import ClassicTemplate from './models/ClassicTemplate';
@@ -16,340 +26,209 @@ import FuturisticTemplate from './models/FuturisticTemplate';
 import MinimalistGreyTemplate from './models/MinimalistGreyTemplate';
 import ArchTemplate from './models/ArchDesignTemplate';
 import ClassicBlueTemplate from './models/ClassicBlueTemplate';
-import { 
-  ArrowLeft, ArrowRight, User, GraduationCap, Download, Briefcase, 
-  Languages, Heart, Zap, Upload 
-} from 'lucide-react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import Swal from 'sweetalert2';
+import ClassicGreyTemplate from './models/ClassicGreyTemplate';
+import ModernBlueTemplate from './models/ModernBlueTemplate';
+
+// 1. Dictionnaire des modèles pour un rendu dynamique plus propre
+const TEMPLATES_MAP = {
+  modern: ModernTemplate,
+  classic: ClassicTemplate,
+  tech: TechTemplate,
+  benjamin: BenjaminTemplate,
+  designer: DesignerTemplate,
+  futuristic: FuturisticTemplate,
+  Arch: ArchTemplate,
+  Minimalist: MinimalistGreyTemplate,
+  Classic: ClassicBlueTemplate,
+  Classicgrey: ClassicGreyTemplate,
+  Modernblue: ModernBlueTemplate
+};
 
 function Create() {
   const navigate = useNavigate();
   const location = useLocation();
   const componentRef = useRef(null); 
   const fileInputRef = useRef(null);
+  
   const userPlan = localStorage.getItem('user_plan') || 'Free';
 
-  // --- GESTION DE LA LIMITE DYNAMIQUE DE TÉLÉCHARGEMENT ---
-  const [allowedLimit, setAllowedLimit] = useState(() => {
-    const savedLimit = localStorage.getItem('user_max_downloads');
-    return savedLimit ? parseInt(savedLimit, 10) : 5; 
-  });
+  // --- GESTION DES QUOTAS ---
+  const [allowedLimit, setAllowedLimit] = useState(() => parseInt(localStorage.getItem('user_max_downloads') || '5', 10));
+  const [downloadCount, setDownloadCount] = useState(() => parseInt(localStorage.getItem('download_count') || '0', 10));
 
-  const [downloadCount, setDownloadCount] = useState(() => {
-    const savedCount = localStorage.getItem('download_count');
-    return savedCount ? parseInt(savedCount, 10) : 0;
-  });
-
-  // Synchronisation dynamique du quota réel avec la Base de Données
   useEffect(() => {
     const syncUserPlanLimit = async () => {
       try {
-        const activePlanName = localStorage.getItem('user_plan') || 'Free';
         const response = await fetch(`${import.meta.env.VITE_API_URL}/plans`);
         if (response.ok) {
           const plans = await response.json();
-          const currentPlan = plans.find(p => p.name.toLowerCase() === activePlanName.toLowerCase());
-          if (currentPlan && currentPlan.maxDownloads) {
+          const currentPlan = plans.find(p => p.name.toLowerCase() === userPlan.toLowerCase());
+          if (currentPlan?.maxDownloads) {
             setAllowedLimit(currentPlan.maxDownloads);
             localStorage.setItem('user_max_downloads', currentPlan.maxDownloads.toString());
           }
         }
       } catch (error) {
-        console.error("Impossible de synchroniser le quota avec l'API :", error);
+        console.error("Erreur sync API:", error);
       }
     };
-
     syncUserPlanLimit();
-  }, []);
+  }, [userPlan]);
 
+  // --- GESTION DU CHANGEMENT DE MODÈLE (via redirection) ---
   useEffect(() => {
     if (location.state?.selectedTemplate) {
       setCvData(prev => ({
         ...prev,
-        theme: {
-          ...prev.theme,
-          template: location.state.selectedTemplate
-        }
+        theme: { ...prev.theme, template: location.state.selectedTemplate }
       }));
-
       navigate(location.pathname, { replace: true, state: {} });
     }
   }, [location.state, navigate]);
 
+  // --- INITIALISATION DES DONNÉES ---
   const [cvData, setCvData] = useState(() => {
-     const queryParams = new URLSearchParams(window.location.search);
-     const templateFromUrl = queryParams.get('template');
+     const templateFromUrl = new URLSearchParams(window.location.search).get('template');
      const saved = localStorage.getItem('cv_data_pro');
      
      if (saved) {
        const parsedData = JSON.parse(saved);
-       if (templateFromUrl) {
-         return {
-           ...parsedData,
-           theme: { ...parsedData.theme, template: templateFromUrl }
-         };
-       }
+       if (templateFromUrl) parsedData.theme.template = templateFromUrl;
        return parsedData;
      }
      
      return {
-       general: { img: null, title: '', name: '', email: '', phone: '', summary: '' },
+       general: { img: null, title: '', name: '', email: '', phone: '', location: '', summary: '' },
        education: [],
        experience: [],
        hobbi: [],
        langue: [],
        skills: [],
-       theme: {
-         sidebarBg: '#1e293b',
-         accentColor: '#3b82f6',
-         template: templateFromUrl || 'modern'
-       }
+       theme: { sidebarBg: '#1e293b', accentColor: '#3b82f6', template: templateFromUrl || 'modern' }
      };
   });
 
-  const handleImportClick = () => {
-    // 👑 Récupération du plan actuel (en minuscules pour éviter les fautes de casse)
-    const activePlan = (localStorage.getItem('user_plan') || 'Free').toLowerCase();
+  // Sauvegarde automatique
+  useEffect(() => {
+    localStorage.setItem('cv_data_pro', JSON.stringify(cvData));
+  }, [cvData]);
 
-    // 🔐 Sécurité : Si l'utilisateur n'est pas Premium, on bloque l'accès immédiatement
-    if (activePlan !== 'premium') {
+  // --- ACTIONS IA & IMPORTATION ---
+  const handleImportClick = () => {
+    if (userPlan.toLowerCase() !== 'premium') {
       Swal.fire({
-        title: 'Fonctionnalité Premium ',
-        text: 'L\'importation et l\'analyse automatique de CV par notre IA sont exclusivement réservées aux membres Premium.',
+        title: 'Fonctionnalité Premium',
+        text: 'L\'analyse automatique par IA est réservée aux membres Premium.',
         icon: 'lock',
         showCancelButton: true,
         confirmButtonColor: '#3b82f6',
         cancelButtonColor: '#1e293b',
-        confirmButtonText: 'Voir les offres Premium',
+        confirmButtonText: 'Voir les offres',
         cancelButtonText: 'Plus tard',
         background: '#1e293b',
         color: '#fff'
-      }).then((result) => {
-        if (result.isConfirmed) {
-          navigate('/plans'); // Redirige vers ta page des tarifs
-        }
-      });
-      return; // On stoppe l'exécution ici
+      }).then((res) => { if (res.isConfirmed) navigate('/plans'); });
+      return;
     }
-
-    // Si l'utilisateur est Premium, on ouvre le sélecteur de fichier normalement
     fileInputRef.current.click();
   };
 
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
     if (file.type === "application/pdf") {
       Swal.fire({
-        title: 'Analyse du PDF en cours...',
-        text: 'Notre IA extrait les informations de votre CV pour remplir les champs.',
+        title: 'Analyse en cours...',
+        text: 'Notre IA extrait vos informations...',
         allowOutsideClick: false,
         background: '#1e293b',
         color: '#fff',
-        didOpen: () => {
-          Swal.showLoading();
-        }
+        didOpen: () => Swal.showLoading()
       });
 
       const formData = new FormData();
       formData.append("cv_file", file);
 
-      fetch(`${import.meta.env.VITE_API_URL}/parse-cv`, {
-        method: "POST",
-        body: formData
-      })
-        .then((res) => {
-          if (!res.ok) throw new Error("Erreur serveur lors de l'analyse.");
-          return res.json();
-        })
-        .then((data) => {
-          setCvData(prev => ({
-            ...prev,
-            ...data,
-            general: { ...data.general, img: prev.general.img },
-            theme: prev.theme 
-          }));
-
-          Swal.fire({
-            title: 'Extraction réussie !',
-            text: 'Les champs ont été pré-remplis à partir de votre PDF.',
-            icon: 'success',
-            background: '#1e293b',
-            color: '#fff',
-            confirmButtonColor: '#3b82f6'
-          });
-        })
-        .catch((err) => {
-          console.error(err);
-          Swal.fire({
-            title: 'Erreur',
-            text: 'Impossible d\'analyser le PDF. Vérifiez votre fichier.',
-            icon: 'error',
-            background: '#1e293b',
-            color: '#fff'
-          });
-        });
-
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/parse-cv`, { method: "POST", body: formData });
+        if (!res.ok) throw new Error("Erreur serveur");
+        const data = await res.json();
+        
+        setCvData(prev => ({
+          ...prev, ...data,
+          general: { ...data.general, img: prev.general.img },
+          theme: prev.theme 
+        }));
+        
+        Swal.fire({ title: 'Extraction réussie !', icon: 'success', background: '#1e293b', color: '#fff', confirmButtonColor: '#3b82f6' });
+      } catch (err) {
+        Swal.fire({ title: 'Erreur', text: 'Impossible d\'analyser le PDF.', icon: 'error', background: '#1e293b', color: '#fff' });
+      }
     } else if (file.type === "application/json" || file.name.endsWith('.json')) {
+      // Logique JSON conservée et raccourcie
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
           const importedData = JSON.parse(event.target.result);
           if (importedData.general && importedData.theme) {
-            const queryParams = new URLSearchParams(window.location.search);
-            const templateFromUrl = queryParams.get('template');
-            
-            if (templateFromUrl) {
-              importedData.theme.template = templateFromUrl;
-            }
-
             setCvData(importedData);
-            Swal.fire({
-              title: 'Succès !',
-              text: 'Vos données de CV ont été importées avec succès.',
-              icon: 'success',
-              background: '#1e293b',
-              color: '#fff'
-            });
-          } else {
-            throw new Error("Format de données invalide");
-          }
-        } catch (error) {
-          Swal.fire({
-            title: 'Erreur',
-            text: 'Le fichier JSON est corrompu.',
-            icon: 'error',
-            background: '#1e293b',
-            color: '#fff'
-          });
+            Swal.fire({ title: 'Succès', icon: 'success', background: '#1e293b', color: '#fff' });
+          } else throw new Error();
+        } catch {
+          Swal.fire({ title: 'Fichier corrompu', icon: 'error', background: '#1e293b', color: '#fff' });
         }
       };
       reader.readAsText(file);
-    } else {
-      Swal.fire({
-        title: 'Format non supporté',
-        text: 'Veuillez importer un fichier au format PDF ou JSON valide.',
-        icon: 'warning',
-        background: '#1e293b',
-        color: '#fff'
-      });
     }
   };
 
-  useEffect(() => {
-    localStorage.setItem('cv_data_pro', JSON.stringify(cvData));
-  }, [cvData]);
-
   const resetCV = () => {
-    if (window.confirm("Voulez-vous vraiment effacer toutes les données et recommencer ?")) {
+    if (window.confirm("Tout effacer et recommencer à zéro ?")) {
       localStorage.removeItem('cv_data_pro');
       window.location.reload(); 
     }
   };
 
+  // --- IMPRESSION & TÉLÉCHARGEMENT ---
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
-    documentTitle: `CV_${cvData.general.name || 'Export'}`,
+    documentTitle: `CV_${cvData.general.name || 'Export'}`.replace(/\s+/g, '_'),
     pageStyle: `
-      @page { 
-        size: A4 portrait; 
-        margin: 0 !important; /* Force la suppression absolue des marges du navigateur */
-      }
+      @page { size: A4 portrait; margin: 0 !important; }
       @media print {
-        html, body {
-          height: 297mm !important;
-          overflow: hidden !important;
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
-
-        /* On force l'affichage en mode "écran large" même à l'impression */
-        #cv-preview {
-          display: flex !important;
-          flex-direction: row !important; 
-          width: 210mm !important;
-          height: 297mm !important;
-          max-width: 210mm !important;
-          max-height: 297mm !important;
-          box-shadow: none !important;
-          margin: 0 !important;
-          padding: 0 !important;
-          overflow: hidden !important; /* Empêche le contenu de déborder sur la page 2 */
-          page-break-inside: avoid !important;
-          page-break-after: avoid !important;
-        }
-  
-        /* On s'assure que les colonnes internes gardent leur place */
-        #cv-preview > div {
-          height: 100% !important;
-          max-height: 297mm !important;
-        }
-        
-        * {
-          -webkit-print-color-adjust: exact !important;
-          print-color-adjust: exact !important;
-        }
+        html, body { width: 210mm; height: 297mm; overflow: hidden; -webkit-print-color-adjust: exact; }
+        #cv-preview { width: 210mm !important; height: 297mm !important; margin: 0; box-shadow: none; overflow: hidden; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       }
     `,
   });
 
   const isLimitReached = downloadCount >= allowedLimit;
 
-  const getBackPath = () => {
-    if (localStorage.getItem('token')) return '/Home';
-    if (localStorage.getItem('token')) return '/UserHome';
-    return '/';
-  };
-
   const handleDownloadClick = () => {
     const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+    if (!token) return Swal.fire({ title: 'Connexion requise', icon: 'warning', background: '#1e293b', color: '#fff' });
 
     if (isLimitReached) {
       Swal.fire({
-        title: 'Limite atteinte',
-        text: `Passez à un plan supérieur pour étendre votre crédit actuel de ${allowedLimit} téléchargements.`,
-        icon: 'info',
-        confirmButtonText: 'Voir les offres',
-        background: '#1e293b',
-        color: '#fff',
-        confirmButtonColor: '#3b82f6'
-      }).then((res) => {
-        if (res.isConfirmed) navigate('/plans');
-      });
+        title: 'Limite atteinte', text: `Passez à un plan supérieur pour continuer.`,
+        icon: 'info', confirmButtonText: 'Voir les offres', background: '#1e293b', color: '#fff', confirmButtonColor: '#3b82f6'
+      }).then((res) => { if (res.isConfirmed) navigate('/plans'); });
       return;
     }
 
-    if (token) {
-      handlePrint();
-      const newCount = downloadCount + 1;
-      setDownloadCount(newCount);
-      localStorage.setItem('download_count', newCount.toString());
-
-      if (newCount === 1) {
-        localStorage.setItem('first_download_date', new Date().toISOString());
-      }
-    } else {
-      Swal.fire({
-        title: 'Connexion requise',
-        text: 'Veuillez vous connecter pour télécharger votre CV.',
-        icon: 'warning',
-        background: '#1e293b',
-        color: '#fff'
-      });
-    }
+    handlePrint();
+    const newCount = downloadCount + 1;
+    setDownloadCount(newCount);
+    localStorage.setItem('download_count', newCount.toString());
   };
 
+  // --- HELPERS CRUD ---
   const updateGeneral = (newData) => {
     if (newData.img instanceof File) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        setCvData(prev => ({
-          ...prev,
-          general: { ...newData, img: reader.result }
-        }));
-      };
+      reader.onloadend = () => setCvData(prev => ({ ...prev, general: { ...newData, img: reader.result } }));
       reader.readAsDataURL(newData.img);
     } else {
       setCvData(prev => ({ ...prev, general: newData }));
@@ -357,215 +236,144 @@ function Create() {
   };
 
   const addItem = (section) => {
-    let newItem = { id: Date.now() };
-    if (section === 'education') newItem = { ...newItem, school: '', title: '', date: '' };
-    else if (section === 'experience') newItem = { ...newItem, company: '', position: '', desc: '', start: '', end: '' };
-    else if (section === 'hobbi') newItem = { ...newItem, loisir: '' };
-    else if (section === 'langue') newItem = { ...newItem, nom: '', niveau: '' };
-    else if (section === 'skills') newItem = { ...newItem, nom: '' };
-    
-    setCvData(prev => ({ ...prev, [section]: [...prev[section], newItem] }));
+    const defaults = {
+      education: { school: '', title: '', date: '' },
+      experience: { company: '', position: '', desc: '', start: '', end: '' },
+      hobbi: { loisir: '' },
+      langue: { nom: '', niveau: '' },
+      skills: { nom: '' }
+    };
+    setCvData(prev => ({ ...prev, [section]: [...prev[section], { id: Date.now(), ...defaults[section] }] }));
   };
 
-  const updateItem = (section, id, newData) => {
-    setCvData(prev => ({
-      ...prev,
-      [section]: prev[section].map(item => item.id === id ? newData : item)
-    }));
-  };
+  const updateItem = (section, id, newData) => setCvData(prev => ({ ...prev, [section]: prev[section].map(item => item.id === id ? newData : item) }));
+  const removeItem = (section, id) => setCvData(prev => ({ ...prev, [section]: prev[section].filter(item => item.id !== id) }));
 
-  const removeItem = (section, id) => {
-    setCvData(prev => ({
-      ...prev,
-      [section]: prev[section].filter(item => item.id !== id)
-    }));
-  };
+  // Récupération dynamique du modèle choisi
+  const SelectedTemplate = TEMPLATES_MAP[cvData.theme.template] || ModernTemplate;
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-[#0f172a]">
       
-      {/* --- COLONNE GAUCHE : ÉDITEUR (Responsive : défilant sur desktop, fluide sur mobile) --- */}
-      <div className="w-full lg:w-[450px] xl:w-[550px] bg-[#1e293b] border-b lg:border-b-0 lg:border-r border-slate-700 lg:h-screen lg:overflow-y-auto p-4 sm:p-6 scrollbar-hide lg:sticky lg:top-0">
-        <div className="flex items-center justify-between mb-6 sm:mb-8">
-          <Link to={getBackPath()} className="text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm">
-            <ArrowLeft size={18} />
-            <span>Retour</span>
+      {/* --- COLONNE GAUCHE : ÉDITEUR --- */}
+      <div className="w-full lg:w-[450px] xl:w-[500px] bg-[#1e293b] border-b lg:border-b-0 lg:border-r border-slate-700 lg:h-screen lg:overflow-y-auto scrollbar-hide flex flex-col">
+        
+        {/* Header Fixe (Sticky) pour accès rapide */}
+        <div className="sticky top-0 z-20 bg-[#1e293b]/95 backdrop-blur-sm border-b border-slate-700/50 p-4 sm:p-6 flex items-center justify-between">
+          <Link to={localStorage.getItem('token') ? '/Home' : '/'} className="text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium">
+            <ArrowLeft size={16} /> Retour
           </Link>
-          <h1 className="text-lg sm:text-xl font-bold text-white">CV.CRAFT</h1>
           <button 
             onClick={resetCV}
-            className="text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-1 rounded border border-red-500/20 transition-colors"
+            className="flex items-center gap-1.5 text-xs bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
           >
-            Réinitialiser
+            <Trash2 size={14} /> Réinitialiser
           </button>
         </div>
 
-        {/* --- PERSONNALISATION & OPTIONS --- */}
-        <section className="bg-slate-800/40 p-4 rounded-xl border border-slate-700 mb-6">
-          <h2 className="text-white font-bold text-xs uppercase tracking-widest mb-4">Personnalisation & Options</h2>
-          <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json,.pdf" className="hidden" />
-
-          <div className="flex flex-col gap-4">
-            <div className="flex gap-6 justify-center items-center border-b border-slate-700 pb-4">
-              <div className="flex flex-col gap-2">
-                <label className="text-slate-400 text-[10px] uppercase">Sidebar</label>
-                <input 
-                  type="color" 
-                  value={cvData.theme.sidebarBg}
-                  onChange={(e) => setCvData({...cvData, theme: {...cvData.theme, sidebarBg: e.target.value}})}
-                  className="w-10 h-10 bg-transparent border-none cursor-pointer"
-                />
+        <div className="p-4 sm:p-6 flex-grow space-y-8 pb-10">
+          
+          {/* Outils de Design & Actions */}
+          <section className="bg-slate-900/50 p-5 rounded-2xl border border-slate-800">
+            <h2 className="text-white font-bold text-xs uppercase tracking-widest mb-5 flex items-center gap-2">
+              <Palette size={16} className="text-blue-500" /> Apparence & Actions
+            </h2>
+            
+            <div className="flex justify-between items-center mb-5 bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-slate-600 overflow-hidden relative cursor-pointer group">
+                  <input type="color" value={cvData.theme.sidebarBg} onChange={(e) => setCvData({...cvData, theme: {...cvData.theme, sidebarBg: e.target.value}})} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                </div>
+                <span className="text-xs font-medium text-slate-300">Couleur 1</span>
               </div>
-              <div className="flex flex-col gap-2">
-                <label className="text-slate-400 text-[10px] uppercase">Accent</label>
-                <input 
-                  type="color" 
-                  value={cvData.theme.accentColor}
-                  onChange={(e) => setCvData({...cvData, theme: {...cvData.theme, accentColor: e.target.value}})}
-                  className="w-10 h-10 bg-transparent border-none cursor-pointer"
-                />
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-slate-600 overflow-hidden relative cursor-pointer group">
+                  <input type="color" value={cvData.theme.accentColor} onChange={(e) => setCvData({...cvData, theme: {...cvData.theme, accentColor: e.target.value}})} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                </div>
+                <span className="text-xs font-medium text-slate-300">Couleur 2</span>
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Link to="/Models" className="flex items-center justify-center gap-2 bg-slate-700 hover:bg-slate-600 text-white py-2.5 px-3 rounded-lg font-bold text-[11px] uppercase tracking-wider transition-all border border-slate-600">
-                Changer de modèle <ArrowRight size={14} />
+            <div className="grid grid-cols-2 gap-3">
+              <Link to="/Models" className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all border border-slate-700">
+                Changer de modèle
               </Link>
-              <button type="button" onClick={handleImportClick} className="flex items-center justify-center gap-2 bg-blue-600/20 hover:bg-blue-600/40 text-blue-400 py-2.5 px-3 rounded-lg font-bold text-[11px] uppercase tracking-wider transition-all border border-blue-500/30">
-                Importer un CV <Upload size={14} />
+              <button type="button" onClick={handleImportClick} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-600/20">
+                <Upload size={16} /> Importer
               </button>
             </div>
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json,.pdf" className="hidden" />
+          </section>
+
+          {/* Formulaires avec Design harmonisé */}
+          <div className="space-y-10">
+            {[
+              { icon: User, title: "Infos Personnelles", color: "text-blue-400", comp: <GeneralInfo data={cvData.general} onChange={updateGeneral} /> },
+              { icon: Briefcase, title: "Profil", color: "text-amber-400", comp: <Profile data={cvData.general} onChange={updateGeneral} /> },
+              { icon: GraduationCap, title: "Formation", color: "text-purple-400", comp: <Education data={cvData.education} onAdd={() => addItem('education')} onUpdate={(id, data) => updateItem('education', id, data)} onRemove={(id) => removeItem('education', id)} /> },
+              { icon: Briefcase, title: "Expériences", color: "text-emerald-400", comp: <Experience data={cvData.experience} onAdd={() => addItem('experience')} onUpdate={(id, data) => updateItem('experience', id, data)} onRemove={(id) => removeItem('experience', id)} /> },
+              { icon: Zap, title: "Compétences", color: "text-blue-400", comp: <Skills data={cvData.skills} onAdd={() => addItem('skills')} onUpdate={(id, data) => updateItem('skills', id, data)} onRemove={(id) => removeItem('skills', id)} /> },
+              { icon: Languages, title: "Langues", color: "text-pink-400", comp: <Langue data={cvData.langue} onAdd={() => addItem('langue')} onUpdate={(id, data) => updateItem('langue', id, data)} onRemove={(id) => removeItem('langue', id)} /> },
+              { icon: Heart, title: "Loisirs", color: "text-red-400", comp: <Hobbi data={cvData.hobbi} onAdd={() => addItem('hobbi')} onUpdate={(id, data) => updateItem('hobbi', id, data)} onRemove={(id) => removeItem('hobbi', id)} /> }
+            ].map((section, idx) => (
+              <section key={idx} className="bg-slate-900/30 p-5 rounded-2xl border border-slate-800/50">
+                <div className={`flex items-center gap-2 mb-5 ${section.color}`}>
+                  <section.icon size={20} />
+                  <h2 className="font-bold uppercase tracking-wider text-sm">{section.title}</h2>
+                </div>
+                {section.comp}
+              </section>
+            ))}
           </div>
-        </section>
-
-        {/* --- FORMULAIRES SECTIONS --- */}
-        <div className="space-y-8 pb-10 lg:pb-20">
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-blue-400">
-              <User size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Informations Personnelles</h2>
-            </div>
-            <GeneralInfo data={cvData.general} onChange={updateGeneral} />
-          </section>
-
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-emerald-400">
-              <Heart size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Loisirs</h2>
-            </div>
-            <Hobbi data={cvData.hobbi} onAdd={() => addItem('hobbi')} onUpdate={(id, data) => updateItem('hobbi', id, data)} onRemove={(id) => removeItem('hobbi', id)} />
-          </section>
-
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-emerald-400">
-              <Languages size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Langues</h2>
-            </div>
-            <Langue data={cvData.langue} onAdd={() => addItem('langue')} onUpdate={(id, data) => updateItem('langue', id, data)} onRemove={(id) => removeItem('langue', id)} />
-          </section>
-
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-emerald-400">
-              <Zap size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Compétences</h2>
-            </div>
-            <Skills data={cvData.skills} onAdd={() => addItem('skills')} onUpdate={(id, data) => updateItem('skills', id, data)} onRemove={(id) => removeItem('skills', id)} />
-          </section>
-
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-amber-400">
-              <Briefcase size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Profil / Accroche</h2>
-            </div>
-            <Profile data={cvData.general} onChange={updateGeneral} />
-          </section>
-
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-purple-400">
-              <GraduationCap size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Éducation</h2>
-            </div>
-            <Education data={cvData.education} onAdd={() => addItem('education')} onUpdate={(id, data) => updateItem('education', id, data)} onRemove={(id) => removeItem('education', id)} />
-          </section>
-
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-emerald-400">
-              <Briefcase size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Expériences</h2>
-            </div>
-            <Experience data={cvData.experience} onAdd={() => addItem('experience')} onUpdate={(id, data) => updateItem('experience', id, data)} onRemove={(id) => removeItem('experience', id)} />
-          </section>
         </div>
       </div>
 
-      {/* --- COLONNE DROITE : PREVIEW (S'adapte parfaitement sur tous les écrans) --- */}
-      <div className="flex-1 bg-[#0f172a] p-4 sm:p-6 overflow-y-auto flex flex-col items-center gap-4">
-        <div className="flex flex-col sm:flex-row items-center gap-4 w-full justify-center">
-          <button 
-            onClick={handleDownloadClick}
-            disabled={isLimitReached}
-            className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-bold transition-all shadow-lg w-full sm:w-auto
-              ${isLimitReached 
-                ? 'bg-slate-700 cursor-not-allowed opacity-50 text-slate-400' 
-                : 'bg-emerald-600 hover:bg-emerald-500 hover:scale-105 active:scale-95 text-white'
-              }`}
-          >           
-            <Download size={18} />
-            {isLimitReached ? 'Limite atteinte' : 'Télécharger mon CV PDF'}
-          </button>
-            
-          {isLimitReached && (
-            <Link to="/plans" className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg animate-pulse w-full sm:w-auto">
-              <Zap size={18} fill="currentColor" />
-              Changer de Plan
+      {/* --- COLONNE DROITE : PREVIEW --- */}
+      <div className="flex-1 bg-[#0f172a] p-4 sm:p-6 overflow-y-auto flex flex-col items-center gap-6">
+        
+        {/* Bandeau de téléchargement */}
+        <div className="bg-slate-900/80 backdrop-blur border border-slate-800 p-4 rounded-2xl w-full max-w-[595px] flex flex-col sm:flex-row items-center justify-between gap-4 sticky top-4 z-10 shadow-xl">
+          <div className="text-center sm:text-left">
+            <p className="text-white font-bold text-sm">Prêt à exporter ?</p>
+            <p className="text-slate-400 text-xs">
+              {isLimitReached ? 'Limite atteinte.' : `Il vous reste ${allowedLimit - downloadCount} téléchargement(s).`}
+            </p>
+          </div>
+          
+          {isLimitReached ? (
+            <Link to="/plans" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg animate-pulse">
+              <Zap size={16} fill="currentColor" /> Passer Premium
             </Link>
+          ) : (
+            <button onClick={handleDownloadClick} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/20 hover:scale-105">
+              <Download size={16} /> Télécharger PDF
+            </button>
           )}
         </div>
-        
-        {isLimitReached ? (
-          <p className="text-red-400 text-xs mt-1 font-medium bg-red-400/10 px-3 py-1 rounded-full border border-red-400/20 text-center">
-            Vous avez atteint votre limite de {allowedLimit} téléchargements liés à votre plan.
-          </p>
-        ) : (
-          downloadCount > 0 && (
-            <p className="text-slate-400 text-[10px] mt-1 text-center">
-              Téléchargements restants : <span className="text-emerald-400 font-bold">{allowedLimit - downloadCount}</span> / {allowedLimit}
-            </p>
-          )
-        )}
 
-        {/* Zone du conteneur A4 : scroll horizontal automatique si l'écran est plus petit que le format A4 (595px) */}
-        <div className="w-full overflow-x-auto pb-4 flex justify-start md:justify-center class-preview-scroll scrollbar-hide">
+        {/* Zone de prévisualisation A4 */}
+        <div className="w-full overflow-x-auto pb-8 flex justify-start md:justify-center class-preview-scroll scrollbar-hide">
           <div 
             ref={componentRef} 
             id="cv-preview" 
-            className="w-[595px] min-w-[595px] print:max-w-none print:w-[210mm] print:h-[297mm] print:shadow-none bg-white shadow-2xl my-2 relative flex flex-col justify-between"
-            style={{ minHeight: '297mm' }} // S'assure que la boîte fait toute la hauteur A4
+            className="w-[595px] min-w-[595px] bg-white shadow-2xl relative flex flex-col justify-between overflow-hidden"
+            style={{ minHeight: '842px' }} /* 297mm approx en pixels pour écran */
           >
-            {/* 1. Contenu principal du CV */}
+            {/* Rendu Dynamique du Composant */}
             <div className="flex-1">
-              {cvData.theme.template === 'modern' && <ModernTemplate data={cvData} />}
-              {cvData.theme.template === 'classic' && <ClassicTemplate data={cvData} />}
-              {cvData.theme.template === 'tech' && <TechTemplate data={cvData} />}
-              {cvData.theme.template === 'benjamin' && <BenjaminTemplate data={cvData} />}
-              {cvData.theme.template === 'designer' && <DesignerTemplate data={cvData} />}
-              {cvData.theme.template === 'futuristic' && <FuturisticTemplate data={cvData} />}
-              {cvData.theme.template === 'Arch' && <ArchTemplate data={cvData} />}
-              {cvData.theme.template === 'Minimalist' && <MinimalistGreyTemplate data={cvData} />}
-              {cvData.theme.template === 'Classic' && <ClassicBlueTemplate data={cvData} />}
+              <SelectedTemplate data={cvData} />
             </div>
 
-            {/* 2. Filigrane intelligent : affiché UNIQUEMENT pour le plan Free */}
+            {/* Filigrane (Plan Free uniquement) */}
             {userPlan.toLowerCase() === 'free' && (
-              <div className="w-full text-center py-2 bg-slate-50 border-t border-slate-200/60 text-[10px] text-slate-400 font-medium tracking-wide flex items-center justify-center gap-1.5 print:bg-slate-50 print:border-t">
-                <span>Généré gratuitement avec</span>
-                <span className="font-bold text-blue-600 tracking-tight flex items-center gap-0.5">
-                  CV.Craft
-                </span>
+              <div className="absolute bottom-2 right-3 text-[9px] text-slate-300/80 font-medium tracking-wider flex items-center gap-1 print:text-slate-400/60 z-50 pointer-events-none select-none">
+                <span>Créé avec</span>
+                <span className="font-bold">CV.Craft</span>
               </div>
             )}
           </div>
         </div>
+
       </div>
     </div>
   );

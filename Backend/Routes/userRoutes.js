@@ -1,26 +1,40 @@
 import express from "express";
-import User from "../Models/user.js"; // Vérifie que ton modèle s'appelle bien user.js
-import { protect } from "../Middleware/AuthMiddleware.js";
+import mongoose from "mongoose";
+import { z } from "zod";
+import User from "../Models/user.js";
+import { protect, adminOnly } from "../Middleware/AuthMiddleware.js";
 
 const router = express.Router();
 
-// @desc    Récupérer tous les utilisateurs
-// @route   GET /api/users
-router.get("/", protect, async (req, res) => {
+const paramsSchema = z.object({
+  id: z.string().refine((val) => mongoose.Types.ObjectId.isValid(val), {
+    message: "Format d'ID invalide",
+  }),
+});
+
+router.get("/", protect, adminOnly, async (req, res) => {
   try {
-    // On récupère tout sauf les mots de passe
-    const users = await User.find({}).select("-password").sort({ createdAt: -1 });
+    const limit = parseInt(req.query.limit) || 100;
+    
+    const users = await User.find({})
+      .select("-password")
+      .sort({ createdAt: -1 })
+      .limit(limit);
+      
     res.json(users);
   } catch (error) {
     res.status(500).json({ message: "Erreur lors de la récupération des utilisateurs" });
   }
 });
 
-// @desc    Supprimer un utilisateur
-// @route   DELETE /api/users/:id
-router.delete("/:id", protect, async (req, res) => {
+router.delete("/:id", protect, adminOnly, async (req, res) => {
   try {
-    const user = await User.findById(req.params.id);
+    const validation = paramsSchema.safeParse(req.params);
+    if (!validation.success) {
+      return res.status(400).json({ message: "ID utilisateur non valide" });
+    }
+
+    const user = await User.findById(validation.data.id);
     if (user) {
       await user.deleteOne();
       res.json({ message: "Utilisateur supprimé" });

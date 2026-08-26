@@ -19,16 +19,16 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin', 'premium'], // 💡 Ajoute 'premium' ici !
+    enum: ['user', 'admin', 'premium'], 
     default: 'user' 
   },
   user_plan: {
     type: String,
-    default: "Free" // 💡 Ajoute le champ pour correspondre aux routes
+    default: "Free"
   },
   user_max_downloads: {
     type: Number,
-    default: 5 // 💡 Ajoute le champ pour correspondre aux routes
+    default: 5
   }
 }, { 
   timestamps: true 

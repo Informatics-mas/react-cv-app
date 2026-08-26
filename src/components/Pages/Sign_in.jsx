@@ -13,11 +13,9 @@ export default function Signin() {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 1. Rediriger si déjà connecté pour éviter les doubles inscriptions
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      // Optionnel : tu pourrais ici aussi vérifier le rôle stocké pour rediriger vers /Adminhome ou /Home
       navigate("/Home");
     }
   }, [navigate]);
@@ -37,23 +35,18 @@ export default function Signin() {
       const data = await res.json();
 
       if (res.ok) {
-        // 2. Si le backend connecte l'utilisateur immédiatement après l'inscription
         if (data.token) {
-          // On stocke TOUTES les informations nécessaires pour le fonctionnement global[cite: 21]
-          localStorage.setItem("token", data.token);
-          localStorage.setItem("userRole", data.user.role); // 💡 TRÈS IMPORTANT : Ajoute cette ligne !
+          const storage = window.localStorage;
+          storage.setItem("token", data.token);
+          storage.setItem("userRole", data.user.role); 
         
-          const userRole = data.user?.role?.toLowerCase();
-        
-          if (userRole === "admin") {
-            navigate("/Adminhome"); // Redirection Admin
-          } else {
-            // Redirige vers Home ou vers la page où il était avant[cite: 20]
+          const isAdmin = String(data.user?.role) === 'admin';
+          if (isAdmin) {
+            navigate("/Adminhome"); 
             const origin = location.state?.from?.pathname || "/Home";
             navigate(origin);
           }
         } else {
-          // Si jamais le backend change et ne renvoie plus de token[cite: 20]
           navigate("/login", { state: { message: "Compte créé ! Veuillez vous connecter." } });
         }
       } else {
@@ -69,23 +62,12 @@ export default function Signin() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-[#131b2e] bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#1a2e5a] via-[#0B1A3B] to-black p-4">
-      
-      <nav className="w-full absolute top-0 z-50">
-        <div className="flex justify-between items-center p-6 max-w-7xl mx-auto">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <FileText size={24} className="text-white" />
-            </div>
-            <span className="text-xl text-white font-bold tracking-tight">CV.Craft</span>
-          </Link>
 
-          <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium">
+       <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium">
             <ArrowLeft size={16} />
             Retour à l'accueil
           </Link>
-        </div>
-      </nav>
-      
+
       <div className="w-full max-w-md mt-16 animate-fadeIn">
         <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-8 rounded-3xl shadow-[0_20px_50px_rgba(0,0,0,0.5)]">
           

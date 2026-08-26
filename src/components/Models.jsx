@@ -64,6 +64,8 @@ function Models() {
     { id: 'designer', name: 'Designer', desc: 'Design artistique et créatif', color: 'bg-pink-500', planRequired: 'Premium' },
     { id: 'futuristic', name: 'Futuriste', desc: 'Design innovant et d\'avant-garde', color: 'bg-purple-500', planRequired: 'Premium' },
     { id: 'Arch', name: 'Arch Design', desc: 'Structure architecturale premium', color: 'bg-amber-600', planRequired: 'Premium' },
+    { id: 'Classicgrey', name: 'Classic Grey', desc: 'Design Classique et chic', color: 'bg-zinc-500', planRequired: 'Premium' },
+    { id: 'Modernblue', name: 'Modern Blue', desc: 'Design moderne et aéré', color: 'bg-blue-500', planRequired: 'Premium' },
   ];
 
   const getBackPath = () => {
@@ -110,95 +112,6 @@ function Models() {
 
   return (
     <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
-      
-      {/* --- BANDEAU DE NAVIGATION SOMBRE & INTERACTIF --- */}
-      <nav className="w-full border-b border-slate-800/80 bg-[#0f172a]/90 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex justify-between items-center px-4 sm:px-6 py-4 max-w-7xl mx-auto gap-4">
-          
-          {/* Logo */}
-          <Link to="/" className="flex items-center gap-2 flex-shrink-0 hover:opacity-80 transition-opacity">
-            <div className="bg-blue-600 p-2 rounded-xl text-white shadow-lg shadow-blue-600/20">
-              <FileText size={20} />
-            </div>
-            <span className="text-base sm:text-lg font-black tracking-tighter uppercase bg-gradient-to-r from-white to-slate-400 bg-clip-text text-transparent">
-              CV.<span className="text-blue-500">Craft</span>
-            </span>
-          </Link>
-
-          {/* Profil et Actions Droite */}
-          <div className="flex items-center gap-2 sm:gap-4">
-
-            {/* Menu Déroulant Profil */}
-            <div className="relative" ref={dropdownRef}>
-              <button 
-                onClick={() => setDropdownOpen(!dropdownOpen)}
-                className="flex items-center gap-1 focus:outline-none group text-slate-300 hover:text-white p-1 rounded-xl transition-colors"
-              >
-                <div className="w-9 h-9 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 group-hover:border-blue-500 group-hover:text-white transition-all">
-                  <User size={16} className="stroke-[2.5]" />
-                </div>
-                <ChevronDown size={14} className={`text-slate-500 transition-transform duration-200 ${dropdownOpen ? 'rotate-180' : ''}`} />
-              </button>
-
-              {/* Contenu de la boîte de dialogue (Dropdown) */}
-              {dropdownOpen && (
-                <div className="absolute right-0 mt-3 w-64 bg-[#1e293b] border border-slate-700/80 rounded-2xl shadow-2xl py-2 z-50 text-slate-200 animate-in fade-in slide-in-from-top-2 duration-150">
-                  
-                  {/* Offre en-tête */}
-                  <div className="px-4 py-3 border-b border-slate-700/60 bg-slate-900/40 rounded-t-2xl">
-                    <p className="text-[9px] uppercase font-bold tracking-wider text-slate-500">Mon offre</p>
-                    <div className="flex items-center justify-between mt-1">
-                      <span className="text-xs font-bold text-slate-300">Formule actuelle</span>
-                      <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
-                        userPlan === 'Free' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      }`}>
-                        {userPlan}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Quotas restants */}
-                  <div className="px-4 py-3 border-b border-slate-700/60 text-xs text-slate-400 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-1.5">
-                      <DownloadCloud size={14} className="text-blue-400" />
-                      <span>Téléchargements</span>
-                    </div>
-                    <span className="font-bold text-white">
-                      {allowedLimit - downloadCount} <span className="text-slate-500 font-normal">/ {allowedLimit} restants</span>
-                    </span>
-                  </div>
-
-                  {/* Liens du Menu */}
-                  <div className="py-1.5">
-                    <Link 
-                      to={getBackPath()} 
-                      onClick={() => setDropdownOpen(false)}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
-                    >
-                      <User size={15} className="text-slate-500" />
-                      <span>Mon Espace</span>
-                    </Link>
-                  </div>
-
-                  {/* Bouton de Déconnexion */}
-                  <div className="border-t border-slate-700/60 pt-1.5 mt-1">
-                    <button 
-                      onClick={() => { setDropdownOpen(false); handleLogout(); }}
-                      className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-red-400 hover:bg-red-500/10 font-medium transition-colors text-left"
-                    >
-                      <LogOut size={15} />
-                      <span>Déconnexion</span>
-                    </button>
-                  </div>
-
-                </div>
-              )}
-            </div>
-
-          </div>
-        </div>
-      </nav>
-
       {/* Barre de retour */}
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6">
         <Link to={getBackPath()} className="inline-flex items-center gap-2 text-xs sm:text-sm text-slate-400 hover:text-white transition-colors">
@@ -218,19 +131,19 @@ function Models() {
       </div>
 
       {/* --- GRILLE DES MODÈLES GRILLE ULTRA-RESPONSIVE --- */}
-      <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 sm:py-8 flex-grow">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
+      <main className="max-w-6xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-8 flex-grow">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
           {CV_MODELS.map((model) => {
             const isLocked = (planHierarchy[userPlan] || 1) < planHierarchy[model.planRequired];
             
             return (
               <div 
                 key={model.id}
-                className="group relative bg-slate-900/40 border border-slate-800/80 rounded-2xl sm:rounded-3xl p-4 sm:p-5 backdrop-blur-md hover:border-slate-700 transition-all flex flex-col justify-between overflow-hidden"
+                className="group relative bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 backdrop-blur-md hover:border-slate-700 transition-all flex flex-col justify-between overflow-hidden"
               >
                 {/* Badge du Plan requis */}
-                <div className="absolute top-3 right-3 sm:top-4 sm:right-4 z-10">
-                  <span className={`text-[9px] sm:text-[10px] font-black uppercase tracking-widest px-2.5 py-1 rounded-full ${
+                <div className="absolute top-3 right-3 z-10">
+                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${
                     model.planRequired === 'Free' ? 'bg-slate-800 text-slate-300 border border-slate-700' :
                     model.planRequired === 'Basic' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30' :
                     'bg-purple-500/10 text-purple-400 border border-purple-500/30'
@@ -239,48 +152,44 @@ function Models() {
                   </span>
                 </div>
 
-                {/* Preview / Image Visuelle */}
-                <div className={`w-full aspect-[4/5] rounded-xl sm:rounded-2xl ${model.color} bg-opacity-20 flex flex-col items-center justify-center relative group-hover:bg-opacity-30 transition-all border border-slate-800/50 mb-4 sm:mb-5`}>
+                {/* Preview / Image Visuelle : 
+                    3. Remplacement de aspect-[4/5] par une hauteur fixe (h-48) */}
+                <div className={`w-full h-48 rounded-xl ${model.color} bg-opacity-20 flex flex-col items-center justify-center relative group-hover:bg-opacity-30 transition-all border border-slate-800/50 mb-4`}>
                   {isLocked ? (
-                    <div className="bg-slate-950/90 p-3 sm:p-4 rounded-xl sm:rounded-2xl border border-slate-800/80 text-center shadow-xl mx-4">
-                      <Lock className="text-purple-400 mx-auto mb-1.5 animate-bounce" size={20} />
-                      <p className="text-[10px] sm:text-xs font-black uppercase tracking-widest text-slate-400">Verrouillé</p>
+                    <div className="bg-slate-950/90 p-3 rounded-xl border border-slate-800/80 text-center shadow-xl mx-4">
+                      <Lock className="text-purple-400 mx-auto mb-1.5 animate-bounce" size={18} />
+                      <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">Verrouillé</p>
                     </div>
                   ) : (
-                    <FileText className="w-10 h-10 sm:w-12 sm:h-12 text-white/20 group-hover:text-white/40 group-hover:scale-110 transition-all duration-300" />
+                    <FileText className="w-10 h-10 text-white/20 group-hover:text-white/40 group-hover:scale-110 transition-all duration-300" />
                   )}
                 </div>
 
                 {/* Contenu textuel */}
-                <div className="space-y-1 mb-4 sm:mb-5">
-                  <h3 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-1.5">
+                <div className="space-y-1 mb-4 flex-grow">
+                  <h3 className="text-sm sm:text-base font-black tracking-tight text-white flex items-center gap-1.5">
                     {model.name}
-                    {!isLocked && <CheckCircle2 size={15} className="text-emerald-500" />}
+                    {!isLocked && <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />}
                   </h3>
-                  <p className="text-xs text-slate-400 leading-relaxed">{model.desc}</p>
+                  <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-2">{model.desc}</p>
                 </div>
 
                 {/* Bouton d'action */}
                 <button
                   onClick={() => handleSelectModel(model)}
-                  className={`w-full py-3 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
+                  className={`w-full py-2.5 rounded-lg font-black text-[10px] sm:text-[11px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${
                     isLocked 
                       ? 'bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500 hover:text-white'
-                      : 'bg-blue-600 text-white hover:bg-blue-500 shadow-lg shadow-blue-600/10'
+                      : 'bg-blue-600 text-white hover:bg-blue-500 shadow-md shadow-blue-600/10'
                   }`}
                 >
-                  {isLocked ? 'Débloquer le modèle' : 'Utiliser ce modèle'}
+                  {isLocked ? 'Débloquer' : 'Utiliser ce modèle'}
                 </button>
               </div>
             );
           })}
         </div>
       </main>
-
-      {/* --- FOOTER --- */}
-      <footer className="w-full border-t border-slate-900 bg-slate-950/20 py-6 mt-auto text-center px-4">
-        <p className="text-slate-500 text-xs">© 2026 CV.Craft. Tous droits réservés.</p>
-      </footer>
     </div>
   );
 }

@@ -38,34 +38,6 @@ function Home() {
 
   return (
     <div className="min-h-screen bg-[#131b2e] text-white font-sans flex flex-col overflow-x-hidden">
-      {/* Navigation Responsive */}
-      <nav className="w-full border-b border-slate-800/50 bg-[#131b2e]/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex justify-between items-center p-4 sm:p-6 max-w-7xl mx-auto">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="bg-blue-600 p-2 rounded-lg shrink-0">
-              <FileText size={22} />
-            </div>
-            <span className="text-lg sm:text-xl font-bold tracking-tight">CV.Craft</span>
-          </Link>
-
-          <div className="flex items-center gap-3 sm:gap-4">
-            <Link 
-              to="/Models" 
-              className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-full font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-1.5 build"
-            >
-              Modèles <ArrowRight size={14} />
-            </Link>
-
-            <Link 
-              to="/login" 
-              className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-full font-bold text-xs sm:text-sm transition-all shadow-lg shadow-blue-600/20"
-            >
-              Login
-            </Link>
-          </div>
-        </div>
-      </nav>
-
       {/* Hero Section - Flex-col sur mobile, Flex-row sur Desktop */}
       <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-12 lg:py-24 flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8 flex-1">
         
@@ -149,56 +121,6 @@ function Home() {
           />
         </div>
       </section>
-
-      {/* Footer Responsive */}
-      <footer className="bg-[#0f172a] border-t border-slate-800 pt-12 sm:pt-16 pb-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8 mb-12 sm:mb-16">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2 justify-start">
-                <div className="bg-blue-600 p-1.5 rounded-md">
-                  <FileText size={18} />
-                </div>
-                <span className="text-lg font-bold tracking-tight">CV.Craft</span>
-              </div>
-              <p className="text-slate-400 text-sm">
-                La plateforme ultime pour créer des CV professionnels.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-4 sm:mb-6 text-sm uppercase text-slate-300">Produit</h4>
-              <ul className="space-y-3 sm:space-y-4 text-slate-400 text-sm">
-                <li><Link to="/Create" className="hover:text-white">Créateur de CV</Link></li>
-                <li><Link to="/Models" className="hover:text-white">Modèles</Link></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-4 sm:mb-6 text-sm uppercase text-slate-300">Aide</h4>
-              <ul className="space-y-3 sm:space-y-4 text-slate-400 text-sm">
-                <li><a href="#" className="hover:text-white">FAQ</a></li>
-                <li><a href="mailto:ogouogoudavid@gmail.com" className="hover:text-white">Contact</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-4 sm:mb-6 text-sm uppercase text-slate-300">Contact</h4>
-              <div className="flex items-center gap-2 text-slate-400 text-sm break-all">
-                <Mail size={16} className="shrink-0" />
-                <span>ogouogoudavid@gmail.com</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-slate-800/50 pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
-            <p className="text-slate-500 text-xs">© 2026 CV.Craft. Tous droits réservés.</p>
-            <p className="text-slate-500 text-xs flex items-center gap-1">
-              Fait avec <Heart size={12} className="text-red-500 fill-red-500" /> par Informatics
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

@@ -26,7 +26,7 @@ const getTransporter = () => {
  */
 export const sendWelcomeEmail = async (userEmail, userName) => {
   try {
-    const loginUrl = `${process.env.VITE_CLIENT_URL || 'http://localhost:5173'}/login`;
+    const loginUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/login`;
     const transporter = getTransporter();
     
     const htmlContent = `
@@ -76,7 +76,7 @@ export const sendWelcomeEmail = async (userEmail, userName) => {
  */
 export const sendPlanConfirmationEmail = async (userEmail, userName, planDetails) => {
   try {
-    const workspaceUrl = `${process.env.VITE_CLIENT_URL || 'http://localhost:5173'}/Home`;
+    const workspaceUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/Home`;
     const { name, maxDownloads, duree, price } = planDetails;
     const transporter = getTransporter();
 
@@ -146,8 +146,8 @@ export const sendPlanConfirmationEmail = async (userEmail, userName, planDetails
 
 export const sendExpirationWarningEmail = async (userEmail, userName, planName) => {
   try {
-    const renewUrl = `${process.env.VITE_CLIENT_URL || 'http://localhost:5173'}/plans`;
-    const workspaceUrl = `${process.env.VITE_CLIENT_URL || 'http://localhost:5173'}/Home`;
+    const renewUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/plans`;
+    const workspaceUrl = `${process.env.CLIENT_URL || 'http://localhost:5173'}/Home`;
     const transporter = getTransporter();
 
     const htmlContent = `

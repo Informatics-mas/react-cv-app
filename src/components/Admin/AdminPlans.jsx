@@ -30,7 +30,7 @@ export default function AdminPlans() {
     isPopular: false
   });
 
-  const API_URL = `${import.meta.env.API_URL}/plans`;
+  const API_URL = `${import.meta.env.VITEAPI_URL}/plans`;
   const token = localStorage.getItem("token");
 
   // --- CHARGEMENT DES PLANS ---

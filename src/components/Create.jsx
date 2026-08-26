@@ -59,7 +59,7 @@ function Create() {
   useEffect(() => {
     const syncUserPlanLimit = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/plans`);
+        const response = await fetch(`${import.meta.env.API_URL}/plans`);
         if (response.ok) {
           const plans = await response.json();
           const currentPlan = plans.find(p => p.name.toLowerCase() === userPlan.toLowerCase());
@@ -151,7 +151,7 @@ function Create() {
       formData.append("cv_file", file);
 
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/parse-cv`, { method: "POST", body: formData });
+        const res = await fetch(`${import.meta.env.API_URL}/parse-cv`, { method: "POST", body: formData });
         if (!res.ok) throw new Error("Erreur serveur");
         const data = await res.json();
         

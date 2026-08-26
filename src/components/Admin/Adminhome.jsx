@@ -29,7 +29,7 @@ function Adminhome() {
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/stats/dashboard-stats`, {
+        const res = await fetch(`${import.meta.env.API_URL}/stats/dashboard-stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         const data = await res.json();
@@ -58,7 +58,7 @@ function Adminhome() {
     const fetchDashboardData = async () => {
       try {
         const token = localStorage.getItem("token");
-       const res = await fetch(`${import.meta.env.VITE_API_URL}/users`, {
+       const res = await fetch(`${import.meta.env.API_URL}/users`, {
           headers: { Authorization: `Bearer ${token}` }
         });
       

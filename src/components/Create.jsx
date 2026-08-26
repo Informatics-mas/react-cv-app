@@ -1,331 +1,380 @@
 import { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
+import Swal from 'sweetalert2';
+import { 
+  ArrowLeft, ArrowRight, User, GraduationCap, Download, Briefcase, 
+  Languages, Heart, Zap, Upload, Palette, RefreshCw, Trash2
+} from 'lucide-react';
+
+// --- Imports des composants formulaires ---
 import GeneralInfo from './Generalinfo';
-import Profile from './Profile'; // Import de ton nouveau composant
+import Profile from './Profile'; 
 import Education from './Education';
 import Experience from './Experience';
-import Hobbi from './hobbi'; // Nouveau composant pour les loisirs
-import Langue from './langue'; // Nouveau composant pour les langues
-import Skills from './skils'; // Nouveau composant pour les compétences
+import Hobbi from './hobbi'; 
+import Langue from './langue'; 
+import Skills from './skils'; 
+
+// --- Imports des Modèles ---
 import ModernTemplate from './models/ModernTemplate';
 import DesignerTemplate from './models/DesignerTemplate';
 import ClassicTemplate from './models/ClassicTemplate';
 import TechTemplate from './models/TechTemplate';
 import BenjaminTemplate from './models/BenjaminTemplate';
 import FuturisticTemplate from './models/FuturisticTemplate';
-import { 
-  ArrowLeft, ArrowRight, User, GraduationCap, Download, Briefcase, 
-  Languages, Heart, Zap, Eye, FileText 
-} from 'lucide-react';
-import { useLocation, Link } from 'react-router-dom';
+import MinimalistGreyTemplate from './models/MinimalistGreyTemplate';
+import ArchTemplate from './models/ArchDesignTemplate';
+import ClassicBlueTemplate from './models/ClassicBlueTemplate';
+import ClassicGreyTemplate from './models/ClassicGreyTemplate';
+import ModernBlueTemplate from './models/ModernBlueTemplate';
+
+// 1. Dictionnaire des modèles pour un rendu dynamique plus propre
+const TEMPLATES_MAP = {
+  modern: ModernTemplate,
+  classic: ClassicTemplate,
+  tech: TechTemplate,
+  benjamin: BenjaminTemplate,
+  designer: DesignerTemplate,
+  futuristic: FuturisticTemplate,
+  Arch: ArchTemplate,
+  Minimalist: MinimalistGreyTemplate,
+  Classic: ClassicBlueTemplate,
+  Classicgrey: ClassicGreyTemplate,
+  Modernblue: ModernBlueTemplate
+};
 
 function Create() {
+  const navigate = useNavigate();
   const location = useLocation();
   const componentRef = useRef(null); 
+  const fileInputRef = useRef(null);
+  
+  const userPlan = localStorage.getItem('user_plan') || 'Free';
 
+  // --- GESTION DES QUOTAS ---
+  const [allowedLimit, setAllowedLimit] = useState(() => parseInt(localStorage.getItem('user_max_downloads') || '5', 10));
+  const [downloadCount, setDownloadCount] = useState(() => parseInt(localStorage.getItem('download_count') || '0', 10));
+
+  useEffect(() => {
+    const syncUserPlanLimit = async () => {
+      try {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/plans`);
+        if (response.ok) {
+          const plans = await response.json();
+          const currentPlan = plans.find(p => p.name.toLowerCase() === userPlan.toLowerCase());
+          if (currentPlan?.maxDownloads) {
+            setAllowedLimit(currentPlan.maxDownloads);
+            localStorage.setItem('user_max_downloads', currentPlan.maxDownloads.toString());
+          }
+        }
+      } catch (error) {
+        console.error("Erreur sync API:", error);
+      }
+    };
+    syncUserPlanLimit();
+  }, [userPlan]);
+
+  // --- GESTION DU CHANGEMENT DE MODÈLE (via redirection) ---
+  useEffect(() => {
+    if (location.state?.selectedTemplate) {
+      setCvData(prev => ({
+        ...prev,
+        theme: { ...prev.theme, template: location.state.selectedTemplate }
+      }));
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate]);
+
+  // --- INITIALISATION DES DONNÉES ---
   const [cvData, setCvData] = useState(() => {
-     // 1. On récupère le template depuis l'URL (?template=tech)
-     const queryParams = new URLSearchParams(location.search);
-     const templateFromUrl = queryParams.get('template');
-    
-     // 2. On regarde s'il y a des données sauvegardées
+     const templateFromUrl = new URLSearchParams(window.location.search).get('template');
      const saved = localStorage.getItem('cv_data_pro');
      
      if (saved) {
        const parsedData = JSON.parse(saved);
-        
-       // FORCE l'utilisation du template de l'URL s'il est présent
-       if (templateFromUrl) {
-         return {
-           ...parsedData,
-           theme: { ...parsedData.theme, template: templateFromUrl }
-         };
-       }
+       if (templateFromUrl) parsedData.theme.template = templateFromUrl;
        return parsedData;
      }
      
-     // 3. Sinon, on initialise tout à neuf
      return {
-       general: { img: '', title: '', name: '', email: '', phone: '', summary: '' },
+       general: { img: null, title: '', name: '', email: '', phone: '', location: '', summary: '' },
        education: [],
        experience: [],
        hobbi: [],
        langue: [],
        skills: [],
-       theme: {
-         sidebarBg: '#1e293b',
-         accentColor: '#3b82f6',
-         template: templateFromUrl || 'modern' // 'modern' par défaut
-       }
+       theme: { sidebarBg: '#1e293b', accentColor: '#3b82f6', template: templateFromUrl || 'modern' }
      };
   });
 
-  // 2. Sauvegarde automatique : à chaque fois que cvData change
+  // Sauvegarde automatique
   useEffect(() => {
     localStorage.setItem('cv_data_pro', JSON.stringify(cvData));
   }, [cvData]);
 
+  // --- ACTIONS IA & IMPORTATION ---
+  const handleImportClick = () => {
+    if (userPlan.toLowerCase() !== 'premium') {
+      Swal.fire({
+        title: 'Fonctionnalité Premium',
+        text: 'L\'analyse automatique par IA est réservée aux membres Premium.',
+        icon: 'lock',
+        showCancelButton: true,
+        confirmButtonColor: '#3b82f6',
+        cancelButtonColor: '#1e293b',
+        confirmButtonText: 'Voir les offres',
+        cancelButtonText: 'Plus tard',
+        background: '#1e293b',
+        color: '#fff'
+      }).then((res) => { if (res.isConfirmed) navigate('/plans'); });
+      return;
+    }
+    fileInputRef.current.click();
+  };
+
+  const handleFileChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    if (file.type === "application/pdf") {
+      Swal.fire({
+        title: 'Analyse en cours...',
+        text: 'Notre IA extrait vos informations...',
+        allowOutsideClick: false,
+        background: '#1e293b',
+        color: '#fff',
+        didOpen: () => Swal.showLoading()
+      });
+
+      const formData = new FormData();
+      formData.append("cv_file", file);
+
+      try {
+        const res = await fetch(`${import.meta.env.VITE_API_URL}/parse-cv`, { method: "POST", body: formData });
+        if (!res.ok) throw new Error("Erreur serveur");
+        const data = await res.json();
+        
+        setCvData(prev => ({
+          ...prev, ...data,
+          general: { ...data.general, img: prev.general.img },
+          theme: prev.theme 
+        }));
+        
+        Swal.fire({ title: 'Extraction réussie !', icon: 'success', background: '#1e293b', color: '#fff', confirmButtonColor: '#3b82f6' });
+      } catch (err) {
+        Swal.fire({ title: 'Erreur', text: 'Impossible d\'analyser le PDF.', icon: 'error', background: '#1e293b', color: '#fff' });
+      }
+    } else if (file.type === "application/json" || file.name.endsWith('.json')) {
+      // Logique JSON conservée et raccourcie
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        try {
+          const importedData = JSON.parse(event.target.result);
+          if (importedData.general && importedData.theme) {
+            setCvData(importedData);
+            Swal.fire({ title: 'Succès', icon: 'success', background: '#1e293b', color: '#fff' });
+          } else throw new Error();
+        } catch {
+          Swal.fire({ title: 'Fichier corrompu', icon: 'error', background: '#1e293b', color: '#fff' });
+        }
+      };
+      reader.readAsText(file);
+    }
+  };
+
   const resetCV = () => {
-    if (window.confirm("Voulez-vous vraiment effacer toutes les données et recommencer ?")) {
+    if (window.confirm("Tout effacer et recommencer à zéro ?")) {
       localStorage.removeItem('cv_data_pro');
-      window.location.reload(); // Recharge la page pour remettre l'état initial
+      window.location.reload(); 
     }
- };
+  };
 
-// Dans le JSX, à côté de "Mon CV Professionnel"
-
+  // --- IMPRESSION & TÉLÉCHARGEMENT ---
   const handlePrint = useReactToPrint({
-  contentRef: componentRef,
-  documentTitle: `CV_${cvData.general.name || 'Export'}`,
-  pageStyle: `
-    @page { 
-      size: A4 portrait; 
-      margin: 0; 
-    }
-    @media print {
-      /* On force l'affichage en mode "écran large" même à l'impression */
-      #cv-preview {
-        display: flex !important;
-        flex-direction: row !important; /* Force l'alignement horizontal */
-        width: 210mm !important;
-        height: 297mm !important;
-        max-width: none !important;
+    contentRef: componentRef,
+    documentTitle: `CV_${cvData.general.name || 'Export'}`.replace(/\s+/g, '_'),
+    pageStyle: `
+      @page { size: A4 portrait; margin: 0 !important; }
+      @media print {
+        html, body { width: 210mm; height: 297mm; overflow: hidden; -webkit-print-color-adjust: exact; }
+        #cv-preview { width: 210mm !important; height: 297mm !important; margin: 0; box-shadow: none; overflow: hidden; }
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
       }
+    `,
+  });
 
-      /* On s'assure que les colonnes internes gardent leur place */
-      #cv-preview > div {
-        height: 100% !important;
-      }
-      
-      * {
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
-      }
-    }
-  `,
-});
+  const isLimitReached = downloadCount >= allowedLimit;
 
-  // Logique de mise à jour
+  const handleDownloadClick = () => {
+    const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
+    if (!token) return Swal.fire({ title: 'Connexion requise', icon: 'warning', background: '#1e293b', color: '#fff' });
+
+    if (isLimitReached) {
+      Swal.fire({
+        title: 'Limite atteinte', text: `Passez à un plan supérieur pour continuer.`,
+        icon: 'info', confirmButtonText: 'Voir les offres', background: '#1e293b', color: '#fff', confirmButtonColor: '#3b82f6'
+      }).then((res) => { if (res.isConfirmed) navigate('/plans'); });
+      return;
+    }
+
+    handlePrint();
+    const newCount = downloadCount + 1;
+    setDownloadCount(newCount);
+    localStorage.setItem('download_count', newCount.toString());
+  };
+
+  // --- HELPERS CRUD ---
   const updateGeneral = (newData) => {
-    // Si newData contient une image qui est un objet File (venant de l'input)
     if (newData.img instanceof File) {
       const reader = new FileReader();
-      reader.onloadend = () => {
-        const base64String = reader.result;
-        setCvData(prev => ({
-          ...prev,
-          general: { ...newData, img: base64String }
-        }));
-      };
+      reader.onloadend = () => setCvData(prev => ({ ...prev, general: { ...newData, img: reader.result } }));
       reader.readAsDataURL(newData.img);
     } else {
-      // Si c'est une mise à jour de texte classique
       setCvData(prev => ({ ...prev, general: newData }));
     }
   };
 
   const addItem = (section) => {
-  let newItem = { id: Date.now() };
-
-  // Personnalisation selon la section
-  if (section === 'education') {
-    newItem = { ...newItem, school: '', title: '', date: '' };
-  } else if (section === 'experience') {
-    newItem = { ...newItem, company: '', position: '', desc: '', start: '', end: '' };
-  } else if (section === 'hobbi') {
-    newItem = { ...newItem, loisir: '' }; // Correspond à ton composant Hobbi
-  } else if (section === 'langue') {
-    newItem = { ...newItem, nom: ''};
-  } else if (section === 'skills') {
-    newItem = { ...newItem, nom: '' };
-  }
-  
-  setCvData(prev => ({ ...prev, [section]: [...prev[section], newItem] }));
-};
-
-  const updateItem = (section, id, newData) => {
-    setCvData(prev => ({
-      ...prev,
-      [section]: prev[section].map(item => item.id === id ? newData : item)
-    }));
+    const defaults = {
+      education: { school: '', title: '', date: '' },
+      experience: { company: '', position: '', desc: '', start: '', end: '' },
+      hobbi: { loisir: '' },
+      langue: { nom: '', niveau: '' },
+      skills: { nom: '' }
+    };
+    setCvData(prev => ({ ...prev, [section]: [...prev[section], { id: Date.now(), ...defaults[section] }] }));
   };
 
-  const removeItem = (section, id) => {
-    setCvData(prev => ({
-      ...prev,
-      [section]: prev[section].filter(item => item.id !== id)
-    }));
-  };
+  const updateItem = (section, id, newData) => setCvData(prev => ({ ...prev, [section]: prev[section].map(item => item.id === id ? newData : item) }));
+  const removeItem = (section, id) => setCvData(prev => ({ ...prev, [section]: prev[section].filter(item => item.id !== id) }));
+
+  // Récupération dynamique du modèle choisi
+  const SelectedTemplate = TEMPLATES_MAP[cvData.theme.template] || ModernTemplate;
 
   return (
     <div className="flex flex-col lg:flex-row min-h-screen bg-[#0f172a]">
       
       {/* --- COLONNE GAUCHE : ÉDITEUR --- */}
-      <div className="w-full min-h-[942px] lg:w-[450px] xl:w-[550px] bg-[#1e293b] border-r border-slate-700 h-screen overflow-y-auto p-6 scrollbar-hide">
-        <div className="flex items-center justify-between mb-8">
-          <Link to="/" className="text-slate-400 hover:text-white transition-colors flex items-center gap-2">
-            <ArrowLeft size={20} />
-            <span>Retour</span>
+      <div className="w-full lg:w-[450px] xl:w-[500px] bg-[#1e293b] border-b lg:border-b-0 lg:border-r border-slate-700 lg:h-screen lg:overflow-y-auto scrollbar-hide flex flex-col">
+        
+        {/* Header Fixe (Sticky) pour accès rapide */}
+        <div className="sticky top-0 z-20 bg-[#1e293b]/95 backdrop-blur-sm border-b border-slate-700/50 p-4 sm:p-6 flex items-center justify-between">
+          <Link to={localStorage.getItem('token') ? '/Home' : '/'} className="text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium">
+            <ArrowLeft size={16} /> Retour
           </Link>
-          <h1 className="text-xl font-bold text-white">Mon CV Professionnel</h1>
           <button 
             onClick={resetCV}
-            className="text-[10px] bg-red-500/10 hover:bg-red-500/20 text-red-400 px-2 py-1 rounded border border-red-500/20 transition-colors"
+            className="flex items-center gap-1.5 text-xs bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
           >
-            Réinitialiser
+            <Trash2 size={14} /> Réinitialiser
           </button>
         </div>
 
-        {/* --- GESTION DU THÈME --- */}
-        <section className="bg-slate-800/40 p-4 rounded-xl border border-slate-700 mb-6">
-          <h2 className="text-white font-bold text-xs uppercase tracking-widest mb-4">Personnalisation du style</h2>
-          <div className="flex gap-6 justify-center items-center">
-            <div className="flex flex-col gap-2">
-              <label className="text-slate-400 text-[10px] uppercase">Sidebar</label>
-              <input 
-                type="color" 
-                value={cvData.theme.sidebarBg}
-                onChange={(e) => setCvData({...cvData, theme: {...cvData.theme, sidebarBg: e.target.value}})}
-                className="w-10 h-10 bg-transparent border-none cursor-pointer"
-              />
-            </div>
-            <div className="flex flex-col gap-2">
-              <label className="text-slate-400 text-[10px] uppercase">Accent</label>
-              <input 
-                type="color" 
-                value={cvData.theme.accentColor}
-                onChange={(e) => setCvData({...cvData, theme: {...cvData.theme, accentColor: e.target.value}})}
-                className="w-10 h-10 bg-transparent border-none cursor-pointer"
-              />
+        <div className="p-4 sm:p-6 flex-grow space-y-8 pb-10">
+          
+          {/* Outils de Design & Actions */}
+          <section className="bg-slate-900/50 p-5 rounded-2xl border border-slate-800">
+            <h2 className="text-white font-bold text-xs uppercase tracking-widest mb-5 flex items-center gap-2">
+              <Palette size={16} className="text-blue-500" /> Apparence & Actions
+            </h2>
+            
+            <div className="flex justify-between items-center mb-5 bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-slate-600 overflow-hidden relative cursor-pointer group">
+                  <input type="color" value={cvData.theme.sidebarBg} onChange={(e) => setCvData({...cvData, theme: {...cvData.theme, sidebarBg: e.target.value}})} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                </div>
+                <span className="text-xs font-medium text-slate-300">Couleur 1</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full border-2 border-slate-600 overflow-hidden relative cursor-pointer group">
+                  <input type="color" value={cvData.theme.accentColor} onChange={(e) => setCvData({...cvData, theme: {...cvData.theme, accentColor: e.target.value}})} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
+                </div>
+                <span className="text-xs font-medium text-slate-300">Couleur 2</span>
+              </div>
             </div>
 
-             <div className="flex flex-col gap-2">
-            <Link to="/Models"
-              className="flex items-center justify-center gap-2 w-full bg-slate-700 hover:bg-slate-600 text-white py-2.5 rounded-lg font-bold text-xs uppercase tracking-wider transition-all border border-slate-600 hover:border-blue-500/50"
-            >
-              Changer de modèle <ArrowRight size={20} />
-            </Link>
+            <div className="grid grid-cols-2 gap-3">
+              <Link to="/Models" className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all border border-slate-700">
+                Changer de modèle
+              </Link>
+              <button type="button" onClick={handleImportClick} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-600/20">
+                <Upload size={16} /> Importer
+              </button>
+            </div>
+            <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json,.pdf" className="hidden" />
+          </section>
+
+          {/* Formulaires avec Design harmonisé */}
+          <div className="space-y-10">
+            {[
+              { icon: User, title: "Infos Personnelles", color: "text-blue-400", comp: <GeneralInfo data={cvData.general} onChange={updateGeneral} /> },
+              { icon: Briefcase, title: "Profil", color: "text-amber-400", comp: <Profile data={cvData.general} onChange={updateGeneral} /> },
+              { icon: GraduationCap, title: "Formation", color: "text-purple-400", comp: <Education data={cvData.education} onAdd={() => addItem('education')} onUpdate={(id, data) => updateItem('education', id, data)} onRemove={(id) => removeItem('education', id)} /> },
+              { icon: Briefcase, title: "Expériences", color: "text-emerald-400", comp: <Experience data={cvData.experience} onAdd={() => addItem('experience')} onUpdate={(id, data) => updateItem('experience', id, data)} onRemove={(id) => removeItem('experience', id)} /> },
+              { icon: Zap, title: "Compétences", color: "text-blue-400", comp: <Skills data={cvData.skills} onAdd={() => addItem('skills')} onUpdate={(id, data) => updateItem('skills', id, data)} onRemove={(id) => removeItem('skills', id)} /> },
+              { icon: Languages, title: "Langues", color: "text-pink-400", comp: <Langue data={cvData.langue} onAdd={() => addItem('langue')} onUpdate={(id, data) => updateItem('langue', id, data)} onRemove={(id) => removeItem('langue', id)} /> },
+              { icon: Heart, title: "Loisirs", color: "text-red-400", comp: <Hobbi data={cvData.hobbi} onAdd={() => addItem('hobbi')} onUpdate={(id, data) => updateItem('hobbi', id, data)} onRemove={(id) => removeItem('hobbi', id)} /> }
+            ].map((section, idx) => (
+              <section key={idx} className="bg-slate-900/30 p-5 rounded-2xl border border-slate-800/50">
+                <div className={`flex items-center gap-2 mb-5 ${section.color}`}>
+                  <section.icon size={20} />
+                  <h2 className="font-bold uppercase tracking-wider text-sm">{section.title}</h2>
+                </div>
+                {section.comp}
+              </section>
+            ))}
           </div>
-
-          </div>
-        </section>
-
-        <div className="space-y-8 pb-20">
-          {/* 1. INFOS GÉNÉRALES */}
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-blue-400">
-              <User size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Informations Personnelles</h2>
-            </div>
-            <GeneralInfo data={cvData.general} onChange={updateGeneral} />
-          </section>
-
-          {/* 1. Hobbies */}
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-emerald-400">
-              <Heart size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Expériences</h2>
-            </div>
-            <Hobbi 
-              data={cvData.hobbi} 
-              onAdd={() => addItem('hobbi')}
-              onUpdate={(id, data) => updateItem('hobbi', id, data)}
-              onRemove={(id) => removeItem('hobbi', id)}
-            />
-          </section>
-
-          {/* 1. Langue */}
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-emerald-400">
-              <Languages size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Langues</h2>
-            </div>
-            <Langue 
-              data={cvData.langue} 
-              onAdd={() => addItem('langue')}
-              onUpdate={(id, data) => updateItem('langue', id, data)}
-              onRemove={(id) => removeItem('langue', id)}
-            />
-          </section>
-
-          {/* 1. SKILLS */}
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-emerald-400">
-              <Zap size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm ">Compétences</h2>
-            </div>
-            <Skills 
-              data={cvData.skills} 
-              onAdd={() => addItem('skills')}
-              onUpdate={(id, data) => updateItem('skills', id, data)}
-              onRemove={(id) => removeItem('skills', id)}
-            />
-          </section>
-
-          {/* 2. NOUVELLE SECTION : PROFIL / RÉSUMÉ */}
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-amber-400">
-              <FileText size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Profil / Accroche</h2>
-            </div>
-            <Profile data={cvData.general} onChange={updateGeneral} />
-          </section>
-
-          {/* 3. ÉDUCATION */}
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-purple-400">
-              <GraduationCap size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Éducation</h2>
-            </div>
-            <Education 
-              data={cvData.education} 
-              onAdd={() => addItem('education')}
-              onUpdate={(id, data) => updateItem('education', id, data)}
-              onRemove={(id) => removeItem('education', id)}
-            />
-          </section>
-
-          {/* 4. EXPÉRIENCES */}
-          <section>
-            <div className="flex items-center gap-2 mb-4 text-emerald-400">
-              <Briefcase size={20} />
-              <h2 className="font-semibold uppercase tracking-wider text-sm">Expériences</h2>
-            </div>
-            <Experience 
-              data={cvData.experience} 
-              onAdd={() => addItem('experience')}
-              onUpdate={(id, data) => updateItem('experience', id, data)}
-              onRemove={(id) => removeItem('experience', id)}
-            />
-          </section>
         </div>
       </div>
 
       {/* --- COLONNE DROITE : PREVIEW --- */}
-      <div className="flex-1 bg-[#0f172a] p-4 md:p-5 overflow-y-auto flex flex-col items-center gap-4">
-        <button 
-          onClick={() => handlePrint()} 
-          className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-6 py-3 rounded-xl font-bold transition-all shadow-lg hover:scale-105 active:scale-95"
-        >           
-          <Download size={18} />
-          telecharger mon CV PDF
-        </button>
-        <div ref={componentRef} id="cv-preview" className="w-full max-w-[595px] print:max-w-none print:w-[210mm] print:h-[297mm] print:shadow-none bg-white shadow-2xl">
-  
-          {/* Choix du modèle selon le state */}
-          {cvData.theme.template === 'modern' && <ModernTemplate data={cvData} />}
-          {cvData.theme.template === 'classic' && <ClassicTemplate data={cvData} />}
-          {cvData.theme.template === 'tech' && <TechTemplate data={cvData} />}
-          {cvData.theme.template === 'benjamin' && <BenjaminTemplate data={cvData} />}
-          {cvData.theme.template === 'designer' && <DesignerTemplate data={cvData} />}
-          {cvData.theme.template === 'futuristic' && <FuturisticTemplate data={cvData} />}
+      <div className="flex-1 bg-[#0f172a] p-4 sm:p-6 overflow-y-auto flex flex-col items-center gap-6">
+        
+        {/* Bandeau de téléchargement */}
+        <div className="bg-slate-900/80 backdrop-blur border border-slate-800 p-4 rounded-2xl w-full max-w-[595px] flex flex-col sm:flex-row items-center justify-between gap-4 sticky top-4 z-10 shadow-xl">
+          <div className="text-center sm:text-left">
+            <p className="text-white font-bold text-sm">Prêt à exporter ?</p>
+            <p className="text-slate-400 text-xs">
+              {isLimitReached ? 'Limite atteinte.' : `Il vous reste ${allowedLimit - downloadCount} téléchargement(s).`}
+            </p>
+          </div>
+          
+          {isLimitReached ? (
+            <Link to="/plans" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg animate-pulse">
+              <Zap size={16} fill="currentColor" /> Passer Premium
+            </Link>
+          ) : (
+            <button onClick={handleDownloadClick} className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg shadow-emerald-900/20 hover:scale-105">
+              <Download size={16} /> Télécharger PDF
+            </button>
+          )}
         </div>
+
+        {/* Zone de prévisualisation A4 */}
+        <div className="w-full overflow-x-auto pb-8 flex justify-start md:justify-center class-preview-scroll scrollbar-hide">
+          <div 
+            ref={componentRef} 
+            id="cv-preview" 
+            className="w-[595px] min-w-[595px] bg-white shadow-2xl relative flex flex-col justify-between overflow-hidden"
+            style={{ minHeight: '842px' }} /* 297mm approx en pixels pour écran */
+          >
+            {/* Rendu Dynamique du Composant */}
+            <div className="flex-1">
+              <SelectedTemplate data={cvData} />
+            </div>
+
+            {/* Filigrane (Plan Free uniquement) */}
+            {userPlan.toLowerCase() === 'free' && (
+              <div className="absolute bottom-2 right-3 text-[9px] text-slate-300/80 font-medium tracking-wider flex items-center gap-1 print:text-slate-400/60 z-50 pointer-events-none select-none">
+                <span>Créé avec</span>
+                <span className="font-bold">CV.Craft</span>
+              </div>
+            )}
+          </div>
+        </div>
+
       </div>
-
-      <button className="lg:hidden fixed bottom-6 right-6 bg-blue-600 text-white p-4 rounded-full shadow-2xl z-50">
-        <Eye size={24} />
-      </button>
-
     </div>
   );
 }

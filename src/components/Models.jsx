@@ -1,148 +1,197 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState, useRef, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { 
   FileText, 
   Sparkles, 
   LayoutTemplate, 
   Heart, 
   Mail,
-  ArrowLeft
+  ArrowLeft,
+  Lock,
+  CheckCircle2,
+  User,
+  LogOut,
+  DownloadCloud,
+  ChevronDown,
+  Bell,
+  MessageSquare
 } from 'lucide-react';
-
+import Swal from 'sweetalert2';
 
 function Models() {
+  const navigate = useNavigate();
+  
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
 
+  // Récupération du plan actuel de l'utilisateur
+  const [userPlan] = useState(() => {
+    return localStorage.getItem('user_plan') || 'Free'; // 'Free', 'Basic', ou 'Premium'
+  });
+
+  const [allowedLimit] = useState(() => {
+    return parseInt(localStorage.getItem('user_max_downloads') || '5', 10);
+  });
+
+  const [downloadCount] = useState(() => {
+    return parseInt(localStorage.getItem('download_count') || '0', 10);
+  });
+
+  // Fermer le menu déroulant si on clique en dehors
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Définition de la hiérarchie des plans pour restreindre les accès
+  const planHierarchy = { 'Free': 1, 'Basic': 2, 'Premium': 3 };
+
+  // Tableau enrichi avec les accès (plan requis)
   const CV_MODELS = [
-    { id: 'modern', name: 'Moderne', desc: 'Design épuré avec sidebar colorée', color: 'bg-blue-500' },
-    { id: 'classic', name: 'Classique', desc: 'Minimaliste et professionnel', color: 'bg-slate-500' },
-    { id: 'tech', name: 'Tech', desc: 'Idéal pour les profils IT et créatifs', color: 'bg-emerald-500' },
-    { id: 'benjamin', name: 'Benjamin', desc: 'Design moderne et épuré', color: 'bg-violet-500' },
-    { id: 'designer', name: 'Designer', desc: 'Design artistique et créatif', color: 'bg-pink-500' },
-    { id: 'futuristic', name: 'Futuriste', desc: 'Design innovant et moderne', color: 'bg-purple-500' },
+    { id: 'classic', name: 'Classique', desc: 'Minimaliste et professionnel', color: 'bg-slate-500', planRequired: 'Free' },
+    { id: 'Classic', name: 'Classic Blue', desc: 'Design intemporel et structuré', color: 'bg-blue-900', planRequired: 'Free' },
+    { id: 'Minimalist', name: 'Minimaliste', desc: 'Épuré au maximum, focus contenu', color: 'bg-zinc-500', planRequired: 'Free' },
+    
+    { id: 'modern', name: 'Moderne', desc: 'Design épuré avec sidebar colorée', color: 'bg-blue-500', planRequired: 'Basic' },
+    { id: 'benjamin', name: 'Benjamin', desc: 'Design moderne et aéré', color: 'bg-violet-500', planRequired: 'Basic' },
+    { id: 'tech', name: 'Tech', desc: 'Idéal pour les profils IT et ingénieurs', color: 'bg-emerald-500', planRequired: 'Basic' },
+    
+    { id: 'designer', name: 'Designer', desc: 'Design artistique et créatif', color: 'bg-pink-500', planRequired: 'Premium' },
+    { id: 'futuristic', name: 'Futuriste', desc: 'Design innovant et d\'avant-garde', color: 'bg-purple-500', planRequired: 'Premium' },
+    { id: 'Arch', name: 'Arch Design', desc: 'Structure architecturale premium', color: 'bg-amber-600', planRequired: 'Premium' },
+    { id: 'Classicgrey', name: 'Classic Grey', desc: 'Design Classique et chic', color: 'bg-zinc-500', planRequired: 'Premium' },
+    { id: 'Modernblue', name: 'Modern Blue', desc: 'Design moderne et aéré', color: 'bg-blue-500', planRequired: 'Premium' },
   ];
 
+  const getBackPath = () => {
+    if (localStorage.getItem('token')) return '/Home';
+    if (localStorage.getItem('token')) return '/UserHome';
+    return '/';
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("adminToken");
+    localStorage.removeItem("cv_data_pro");
+    window.location.href = "/"; 
+  };
+
+  // Validation de l'accès au modèle choisi
+  const handleSelectModel = (model) => {
+    const userLevel = planHierarchy[userPlan] || 1;
+    const requiredLevel = planHierarchy[model.planRequired];
+
+    if (userLevel >= requiredLevel) {
+      // L'utilisateur a le niveau requis
+      navigate('/create', { state: { selectedTemplate: model.id } });
+    } else {
+      // Niveau insuffisant
+      Swal.fire({
+        title: `Modèle ${model.planRequired} requis`,
+        text: `Le modèle "${model.name}" n'est pas disponible avec votre offre actuelle (${userPlan}). Veuillez changer d'offre pour y accéder.`,
+        icon: 'lock',
+        showCancelButton: true,
+        confirmButtonColor: '#3b82f6',
+        cancelButtonColor: '#1e293b',
+        confirmButtonText: 'Voir les offres',
+        cancelButtonText: 'Plus tard',
+        background: '#1e293b',
+        color: '#fff'
+      }).then((result) => {
+        if (result.isConfirmed) {
+          navigate('/plans');
+        }
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-[#131b2e] text-white font-sans flex flex-col">
-      {/* Navigation */}
-      <nav className="w-full border-b border-slate-800/50 bg-[#131b2e]/50 backdrop-blur-md sticky top-0 z-50">
-        <div className="flex justify-between items-center p-6 max-w-7xl mx-auto">
-          <Link to="/" className="flex items-center gap-2 hover:opacity-80 transition-opacity">
-            <div className="bg-blue-600 p-2 rounded-lg">
-              <FileText size={24} />
-            </div>
-            <span className="text-xl font-bold tracking-tight">CV.Craft</span>
-          </Link>
-          
-          <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium">
-            <ArrowLeft size={16} />
-            Retour à l'accueil
-          </Link>
-        </div>
-      </nav>
+    <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
+      {/* Barre de retour */}
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6">
+        <Link to={getBackPath()} className="inline-flex items-center gap-2 text-xs sm:text-sm text-slate-400 hover:text-white transition-colors">
+          <ArrowLeft size={14} /> Retour au tableau de bord
+        </Link>
+      </div>
 
-      {/* Hero Models */}
-      <header className="pt-16 pb-8 text-center px-6">
-        <h1 className="text-4xl md:text-5xl font-extrabold mb-4">
-          Nos <span className="text-blue-500">Modèles</span>
+      {/* --- SECTION TITRE --- */}
+      <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6 sm:pt-8 pb-2 text-center sm:text-left">
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-black uppercase tracking-tight flex flex-col sm:flex-row items-center gap-2.5 justify-center sm:justify-start">
+          <LayoutTemplate className="text-blue-500 w-7 h-7 sm:w-9 sm:h-9 md:w-10 md:h-10" />
+          Nos Modèles de <span className="bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent">CV Professionnels</span>
         </h1>
-        <p className="text-slate-400 max-w-2xl mx-auto text-lg">
-          Sélectionnez un design conçu pour passer les systèmes de filtrage (ATS) et capter l'attention des recruteurs.
+        <p className="text-slate-400 text-xs sm:text-sm mt-2 max-w-xl mx-auto sm:mx-0">
+          Choisissez un modèle adapté à votre secteur. Débloquez les designs avancés avec nos forfaits Basic et Premium.
         </p>
-      </header>
+      </div>
 
-      {/* Models Grid */}
-      <section className="py-12 max-w-7xl mx-auto px-6 flex-1">
-        <div className="grid md:grid-cols-5 gap-4">
-          {CV_MODELS.map((model) => (
-            <div key={model.id} className="bg-slate-800/40 border border-slate-700 rounded-2xl overflow-hidden hover:border-blue-500 transition-all group flex flex-col h-full">
-              {/* Simulation du visuel du CV */}
-              <div className={`aspect-[3/4] ${model.color} opacity-20 group-hover:opacity-30 transition-opacity flex items-center justify-center relative`}>
-                <LayoutTemplate size={60} className="text-white relative z-10" />
-                {/* Petit badge "Populaire" sur le moderne par exemple */}
-                {model.id === 'modern' && (
-                  <span className="absolute top-4 right-4 bg-blue-600 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-tighter opacity-100">
-                    Populaire
+      {/* --- GRILLE DES MODÈLES GRILLE ULTRA-RESPONSIVE --- */}
+      <main className="max-w-6xl w-full mx-auto px-3 sm:px-6 py-6 sm:py-8 flex-grow">
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-5">
+          {CV_MODELS.map((model) => {
+            const isLocked = (planHierarchy[userPlan] || 1) < planHierarchy[model.planRequired];
+            
+            return (
+              <div 
+                key={model.id}
+                className="group relative bg-slate-900/40 border border-slate-800/80 rounded-2xl p-4 backdrop-blur-md hover:border-slate-700 transition-all flex flex-col justify-between overflow-hidden"
+              >
+                {/* Badge du Plan requis */}
+                <div className="absolute top-3 right-3 z-10">
+                  <span className={`text-[9px] font-black uppercase tracking-widest px-2 py-1 rounded-full ${
+                    model.planRequired === 'Free' ? 'bg-slate-800 text-slate-300 border border-slate-700' :
+                    model.planRequired === 'Basic' ? 'bg-blue-500/10 text-blue-400 border border-blue-500/30' :
+                    'bg-purple-500/10 text-purple-400 border border-purple-500/30'
+                  }`}>
+                    {model.planRequired === 'Free' ? 'Gratuit' : model.planRequired}
                   </span>
-                )}
-              </div>
-
-              <div className="p-6 flex flex-col flex-1">
-                <h3 className="text-xl font-bold mb-2">{model.name}</h3>
-                <p className="text-slate-400 text-sm mb-8 flex-1">{model.desc}</p>
-
-                <Link 
-                  to={`/Create?template=${model.id}`}
-                  className="block w-full text-center bg-blue-600 text-white py-3 rounded-xl font-bold hover:bg-blue-500 transition-all shadow-lg shadow-blue-900/20"
-                >
-                  Choisir ce modèle
-                </Link>
-              </div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Footer sans les icônes qui buggent */}
-      <footer className="bg-[#0f172a] border-t border-slate-800 pt-16 pb-8">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <div className="bg-blue-600 p-1.5 rounded-md">
-                  <FileText size={18} />
                 </div>
-                <span className="text-lg font-bold tracking-tight">CV.Craft</span>
+
+                {/* Preview / Image Visuelle : 
+                    3. Remplacement de aspect-[4/5] par une hauteur fixe (h-48) */}
+                <div className={`w-full h-48 rounded-xl ${model.color} bg-opacity-20 flex flex-col items-center justify-center relative group-hover:bg-opacity-30 transition-all border border-slate-800/50 mb-4`}>
+                  {isLocked ? (
+                    <div className="bg-slate-950/90 p-3 rounded-xl border border-slate-800/80 text-center shadow-xl mx-4">
+                      <Lock className="text-purple-400 mx-auto mb-1.5 animate-bounce" size={18} />
+                      <p className="text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-400">Verrouillé</p>
+                    </div>
+                  ) : (
+                    <FileText className="w-10 h-10 text-white/20 group-hover:text-white/40 group-hover:scale-110 transition-all duration-300" />
+                  )}
+                </div>
+
+                {/* Contenu textuel */}
+                <div className="space-y-1 mb-4 flex-grow">
+                  <h3 className="text-sm sm:text-base font-black tracking-tight text-white flex items-center gap-1.5">
+                    {model.name}
+                    {!isLocked && <CheckCircle2 size={14} className="text-emerald-500 shrink-0" />}
+                  </h3>
+                  <p className="text-[11px] text-slate-400 leading-relaxed line-clamp-2">{model.desc}</p>
+                </div>
+
+                {/* Bouton d'action */}
+                <button
+                  onClick={() => handleSelectModel(model)}
+                  className={`w-full py-2.5 rounded-lg font-black text-[10px] sm:text-[11px] uppercase tracking-widest transition-all flex items-center justify-center gap-1.5 ${
+                    isLocked 
+                      ? 'bg-purple-500/10 border border-purple-500/20 text-purple-400 hover:bg-purple-500 hover:text-white'
+                      : 'bg-blue-600 text-white hover:bg-blue-500 shadow-md shadow-blue-600/10'
+                  }`}
+                >
+                  {isLocked ? 'Débloquer' : 'Utiliser ce modèle'}
+                </button>
               </div>
-              <p className="text-slate-400 text-sm">
-                La plateforme ultime pour créer des CV professionnels.
-              </p>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-6 text-sm uppercase text-slate-300">Produit</h4>
-              <ul className="space-y-4 text-slate-400 text-sm">
-                <li><Link to="/Create" className="hover:text-white">Créateur de CV</Link></li>
-                <li><Link to="/Models" className="hover:text-white">Modèles</Link></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-6 text-sm uppercase text-slate-300">Aide</h4>
-              <ul className="space-y-4 text-slate-400 text-sm">
-                <li><a href="#" className="hover:text-white">FAQ</a></li>
-                <li><a href="mailto:ogouogoudavid@gmail.com" className="hover:text-white">Contact</a></li>
-              </ul>
-            </div>
-
-            <div>
-              <h4 className="font-bold mb-6 text-sm uppercase text-slate-300">Contact</h4>
-              <div className="flex items-center gap-2 text-slate-400 text-sm">
-                <Mail size={16} />
-                <span>ogouogoudavid@gmail.com</span>
-              </div>
-            </div>
-          </div>
-
-          <div className="border-t border-slate-800/50 pt-8 flex justify-between items-center">
-            <p className="text-slate-500 text-xs">© 2026 CV.Craft. Tous droits réservés.</p>
-            <p className="text-slate-500 text-xs flex items-center gap-1">
-              Fait avec <Heart size={12} className="text-red-500 fill-red-500" /> par Informatics
-            </p>
-          </div>
+            );
+          })}
         </div>
-      </footer>
+      </main>
     </div>
   );
 }
-
-const FeatureCard = ({ icon, title, desc }) => (
-  <div className="space-y-4">
-    <div className="bg-slate-800 w-12 h-12 rounded-lg flex items-center justify-center">
-      {icon}
-    </div>
-    <h3 className="text-xl font-bold">{title}</h3>
-    <p className="text-slate-400 text-sm leading-relaxed">{desc}</p>
-  </div>
-);
 
 export default Models;

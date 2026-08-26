@@ -44,7 +44,7 @@ const PlanCards = () => {
     // 1. Récupération des plans d'abonnement disponibles
     const fetchPlans = async () => {
       try {
-        const response = await fetch(`${import.meta.env.API_URL}/plans`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/plans`);
         if (!response.ok) throw new Error("Impossible de récupérer les plans");
         const data = await response.json();
         setPlans(data);
@@ -60,7 +60,7 @@ const PlanCards = () => {
     const fetchUserProfile = async () => {
       if (!token) return;
       try {
-        const response = await fetch(`${import.meta.env.API_URL}/auth/me`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`,
@@ -130,7 +130,7 @@ const PlanCards = () => {
         try {
           const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
           
-          const response = await fetch(`${import.meta.env.API_URL}/subscriptions/subscribe`, {
+          const response = await fetch(`${import.meta.env.VITE_API_URL}/subscriptions/subscribe`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',

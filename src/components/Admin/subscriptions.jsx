@@ -18,7 +18,7 @@ export default function SubscriptionManager() {
   const [editData, setEditData] = useState({});
   const [searchTerm, setSearchTerm] = useState(""); // Ajout d'une recherche
 
-  const API_URL = `${import.meta.env.VITE_API_URL}/subscriptions`;
+  const API_URL = `${import.meta.env.API_URL}/subscriptions`;
   const token = localStorage.getItem("token");
 
   const fetchSubscriptions = useCallback(async () => {

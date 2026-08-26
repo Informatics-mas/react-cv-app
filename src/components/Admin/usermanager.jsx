@@ -18,7 +18,7 @@ export default function UserManager() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const API_URL = `${import.meta.env.VITE_API_URL}/users`;
+  const API_URL = `${import.meta.env.API_URL}/users`;
   const token = localStorage.getItem("token");
 
   const fetchUsers = useCallback(async () => {

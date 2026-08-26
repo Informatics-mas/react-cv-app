@@ -46,7 +46,7 @@ function Home2() {
       }
 
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
+        const response = await fetch(`${import.meta.env.API_URL}/auth/me`, {
           method: "GET",
           headers: {
             "Authorization": `Bearer ${token}`,

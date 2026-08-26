@@ -87,7 +87,7 @@ export default function Payment() {
       if (!token) throw new Error("Utilisateur non authentifié ou session expirée.");
 
       // Appel à ton API Backend pour enregistrer la souscription
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/subscriptions/subscribe`, {
+      const response = await fetch(`${import.meta.env.API_URL}/subscriptions/subscribe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

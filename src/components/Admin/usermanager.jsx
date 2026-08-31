@@ -52,6 +52,9 @@ export default function UserManager() {
       console.error("Erreur de chargement des utilisateurs:", err);
       if (err.message === "401") {
         setError("Votre session a expiré (401).");
+        localStorage.removeItem("token");
+        localStorage.removeItem("userRole");
+        window.location.href = "/login";
       } else {
         setError("Impossible de charger la liste des utilisateurs.");
       }

@@ -26,6 +26,14 @@ export default function SubscriptionManager() {
       const res = await fetch(API_URL, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("userRole");
+        window.location.href = "/login";
+        return;
+      }
+
       const data = await res.json();
       setSubscriptions(data);
     } catch (err) {

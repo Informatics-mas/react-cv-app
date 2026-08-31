@@ -32,6 +32,14 @@ function Adminhome() {
         const res = await fetch(`${import.meta.env.VITE_API_URL}/stats/dashboard-stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
+
+        if (res.status === 401) {
+         localStorage.removeItem("token");
+         localStorage.removeItem("userRole");
+         window.location.href = "/login";
+         return;
+       }
+
         const data = await res.json();
         setStats(data);
       } catch (err) {
@@ -61,6 +69,13 @@ function Adminhome() {
        const res = await fetch(`${import.meta.env.VITE_API_URL}/users`, {
           headers: { Authorization: `Bearer ${token}` }
         });
+
+        if (res.status === 401) {
+         localStorage.removeItem("token");
+         localStorage.removeItem("userRole");
+         window.location.href = "/login";
+         return;
+       }
       
         const data = await res.json();
         if (res.ok && Array.isArray(data)) {

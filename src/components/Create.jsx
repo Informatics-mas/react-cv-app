@@ -3,8 +3,8 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import Swal from 'sweetalert2';
 import { 
-  ArrowLeft, ArrowRight, User, GraduationCap, Download, Briefcase, 
-  Languages, Heart, Zap, Upload, Palette, RefreshCw, Trash2
+  ArrowLeft, User, GraduationCap, Download, Briefcase, 
+  Languages, Heart, Zap, Upload, Palette, Trash2, ArrowRight
 } from 'lucide-react';
 
 // --- Imports des composants formulaires ---
@@ -29,7 +29,6 @@ import ClassicBlueTemplate from './models/ClassicBlueTemplate';
 import ClassicGreyTemplate from './models/ClassicGreyTemplate';
 import ModernBlueTemplate from './models/ModernBlueTemplate';
 
-// 1. Dictionnaire des modèles pour un rendu dynamique plus propre
 const TEMPLATES_MAP = {
   modern: ModernTemplate,
   classic: ClassicTemplate,
@@ -59,7 +58,7 @@ function Create() {
   useEffect(() => {
     const syncUserPlanLimit = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VIE_API_URL}/plans`);
+        const response = await fetch(`${import.meta.env.VITE_API_URL}/plans`);
         if (response.ok) {
           const plans = await response.json();
           const currentPlan = plans.find(p => p.name.toLowerCase() === userPlan.toLowerCase());
@@ -75,7 +74,6 @@ function Create() {
     syncUserPlanLimit();
   }, [userPlan]);
 
-  // --- GESTION DU CHANGEMENT DE MODÈLE (via redirection) ---
   useEffect(() => {
     if (location.state?.selectedTemplate) {
       setCvData(prev => ({
@@ -86,7 +84,6 @@ function Create() {
     }
   }, [location.state, navigate]);
 
-  // --- INITIALISATION DES DONNÉES ---
   const [cvData, setCvData] = useState(() => {
      const templateFromUrl = new URLSearchParams(window.location.search).get('template');
      const saved = localStorage.getItem('cv_data_pro');
@@ -108,7 +105,6 @@ function Create() {
      };
   });
 
-  // Sauvegarde automatique
   useEffect(() => {
     localStorage.setItem('cv_data_pro', JSON.stringify(cvData));
   }, [cvData]);
@@ -166,7 +162,6 @@ function Create() {
         Swal.fire({ title: 'Erreur', text: 'Impossible d\'analyser le PDF.', icon: 'error', background: '#1e293b', color: '#fff' });
       }
     } else if (file.type === "application/json" || file.name.endsWith('.json')) {
-      // Logique JSON conservée et raccourcie
       const reader = new FileReader();
       reader.onload = (event) => {
         try {
@@ -190,16 +185,44 @@ function Create() {
     }
   };
 
-  // --- IMPRESSION & TÉLÉCHARGEMENT ---
+  // --- IMPRESSION STRICTE A4 ---
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
     documentTitle: `CV_${cvData.general.name || 'Export'}`.replace(/\s+/g, '_'),
     pageStyle: `
-      @page { size: A4 portrait; margin: 0 !important; }
+      @page { 
+        size: A4 portrait; 
+        margin: 0 !important; 
+      }
       @media print {
-        html, body { width: 210mm; height: 297mm; overflow: hidden; -webkit-print-color-adjust: exact; }
-        #cv-preview { width: 210mm !important; height: 297mm !important; margin: 0; box-shadow: none; overflow: hidden; }
-        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        html, body {
+          height: 297mm !important;
+          overflow: hidden !important;
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
+        #cv-preview {
+          display: flex !important;
+          flex-direction: row !important; 
+          width: 210mm !important;
+          height: 297mm !important;
+          max-width: 210mm !important;
+          max-height: 297mm !important;
+          box-shadow: none !important;
+          margin: 0 !important;
+          padding: 0 !important;
+          overflow: hidden !important; 
+          page-break-inside: avoid !important;
+          page-break-after: avoid !important;
+        }
+        #cv-preview > div {
+          height: 100% !important;
+          max-height: 297mm !important;
+        }
+        * {
+          -webkit-print-color-adjust: exact !important;
+          print-color-adjust: exact !important;
+        }
       }
     `,
   });
@@ -208,7 +231,7 @@ function Create() {
 
   const handleDownloadClick = () => {
     const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
-    if (!token) return Swal.fire({ title: 'Connexion requise', icon: 'warning', background: '#1e293b', color: '#fff' });
+    if (!token) return Swal.fire({ title: 'Connexion requise', text: 'Vous devez être connecté pour télécharger.', icon: 'warning', background: '#1e293b', color: '#fff' });
 
     if (isLimitReached) {
       Swal.fire({
@@ -219,12 +242,12 @@ function Create() {
     }
 
     handlePrint();
+    
     const newCount = downloadCount + 1;
     setDownloadCount(newCount);
     localStorage.setItem('download_count', newCount.toString());
   };
 
-  // --- HELPERS CRUD ---
   const updateGeneral = (newData) => {
     if (newData.img instanceof File) {
       const reader = new FileReader();
@@ -249,7 +272,6 @@ function Create() {
   const updateItem = (section, id, newData) => setCvData(prev => ({ ...prev, [section]: prev[section].map(item => item.id === id ? newData : item) }));
   const removeItem = (section, id) => setCvData(prev => ({ ...prev, [section]: prev[section].filter(item => item.id !== id) }));
 
-  // Récupération dynamique du modèle choisi
   const SelectedTemplate = TEMPLATES_MAP[cvData.theme.template] || ModernTemplate;
 
   return (
@@ -258,7 +280,7 @@ function Create() {
       {/* --- COLONNE GAUCHE : ÉDITEUR --- */}
       <div className="w-full lg:w-[450px] xl:w-[500px] bg-[#1e293b] border-b lg:border-b-0 lg:border-r border-slate-700 lg:h-screen lg:overflow-y-auto scrollbar-hide flex flex-col">
         
-        {/* Header Fixe (Sticky) pour accès rapide */}
+        {/* Header Fixe */}
         <div className="sticky top-0 z-20 bg-[#1e293b]/95 backdrop-blur-sm border-b border-slate-700/50 p-4 sm:p-6 flex items-center justify-between">
           <Link to={localStorage.getItem('token') ? '/Home' : '/'} className="text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium">
             <ArrowLeft size={16} /> Retour
@@ -281,13 +303,13 @@ function Create() {
             
             <div className="flex justify-between items-center mb-5 bg-slate-800/50 p-3 rounded-xl border border-slate-700/50">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full border-2 border-slate-600 overflow-hidden relative cursor-pointer group">
+                <div className="w-8 h-8 rounded-full border-2 border-slate-600 overflow-hidden relative cursor-pointer">
                   <input type="color" value={cvData.theme.sidebarBg} onChange={(e) => setCvData({...cvData, theme: {...cvData.theme, sidebarBg: e.target.value}})} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
                 </div>
                 <span className="text-xs font-medium text-slate-300">Couleur 1</span>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full border-2 border-slate-600 overflow-hidden relative cursor-pointer group">
+                <div className="w-8 h-8 rounded-full border-2 border-slate-600 overflow-hidden relative cursor-pointer">
                   <input type="color" value={cvData.theme.accentColor} onChange={(e) => setCvData({...cvData, theme: {...cvData.theme, accentColor: e.target.value}})} className="absolute -top-2 -left-2 w-16 h-16 cursor-pointer" />
                 </div>
                 <span className="text-xs font-medium text-slate-300">Couleur 2</span>
@@ -305,7 +327,7 @@ function Create() {
             <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".json,.pdf" className="hidden" />
           </section>
 
-          {/* Formulaires avec Design harmonisé */}
+          {/* Formulaires */}
           <div className="space-y-10">
             {[
               { icon: User, title: "Infos Personnelles", color: "text-blue-400", comp: <GeneralInfo data={cvData.general} onChange={updateGeneral} /> },
@@ -328,7 +350,7 @@ function Create() {
         </div>
       </div>
 
-      {/* --- COLONNE DROITE : PREVIEW --- */}
+      {/* --- COLONNE DROITE : PREVIEW VISIBLE --- */}
       <div className="flex-1 bg-[#0f172a] p-4 sm:p-6 overflow-y-auto flex flex-col items-center gap-6">
         
         {/* Bandeau de téléchargement */}
@@ -351,13 +373,13 @@ function Create() {
           )}
         </div>
 
-        {/* Zone de prévisualisation A4 */}
+        {/* Zone de prévisualisation A4 Parfaite */}
         <div className="w-full overflow-x-auto pb-8 flex justify-start md:justify-center class-preview-scroll scrollbar-hide">
           <div 
             ref={componentRef} 
             id="cv-preview" 
-            className="w-[595px] min-w-[595px] bg-white shadow-2xl relative flex flex-col justify-between overflow-hidden"
-            style={{ minHeight: '842px' }} /* 297mm approx en pixels pour écran */
+            className="w-[595px] min-w-[595px] print:max-w-none print:w-[210mm] print:h-[297mm] print:shadow-none bg-white shadow-2xl relative flex flex-col justify-between overflow-hidden"
+            style={{ minHeight: '297mm' }} 
           >
             {/* Rendu Dynamique du Composant */}
             <div className="flex-1">
@@ -368,7 +390,7 @@ function Create() {
             {userPlan.toLowerCase() === 'free' && (
               <div className="absolute bottom-2 right-3 text-[9px] text-slate-300/80 font-medium tracking-wider flex items-center gap-1 print:text-slate-400/60 z-50 pointer-events-none select-none">
                 <span>Créé avec</span>
-                <span className="font-bold">CV.Craft</span>
+                <span className="font-bold text-blue-600">CV.Craft</span>
               </div>
             )}
           </div>

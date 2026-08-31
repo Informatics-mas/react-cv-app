@@ -40,6 +40,14 @@ export default function AdminPlans() {
       const res = await fetch(API_URL, {
         headers: { Authorization: `Bearer ${token}` }
       });
+
+      if (res.status === 401) {
+        localStorage.removeItem("token");
+        localStorage.removeItem("userRole");
+        window.location.href = "/login";
+        return;
+      }
+
       if (!res.ok) throw new Error("Erreur lors de la récupération des plans");
       const data = await res.json();
       setPlans(data);

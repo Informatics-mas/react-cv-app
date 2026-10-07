@@ -2,6 +2,8 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useReactToPrint } from 'react-to-print';
 import Swal from 'sweetalert2';
+import { isFreePlan } from '../constants';
+import { API_BASE_URL } from '../api/client';
 import { 
   ArrowLeft, User, GraduationCap, Download, Briefcase, 
   Languages, Heart, Zap, Upload, Palette, Trash2, ArrowRight
@@ -49,43 +51,40 @@ function Create() {
   const componentRef = useRef(null); 
   const fileInputRef = useRef(null);
   
-  const userPlan = localStorage.getItem('user_plan') || 'Free';
+  const [userPlan, setUserPlan] = useState(() => localStorage.getItem('user_plan') || 'Free');
 
-  // --- GESTION DES QUOTAS ---
+  // --- GESTION DES QUOTAS : le serveur est la source de vérité (/auth/me) ---
   const [allowedLimit, setAllowedLimit] = useState(() => parseInt(localStorage.getItem('user_max_downloads') || '5', 10));
   const [downloadCount, setDownloadCount] = useState(() => parseInt(localStorage.getItem('download_count') || '0', 10));
 
   useEffect(() => {
-    const syncUserPlanLimit = async () => {
+    const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+    if (!token) return; // visiteur non connecté : le téléchargement exige un token (voir handleDownloadClick)
+
+    const syncEntitlements = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/plans`);
-        if (response.ok) {
-          const plans = await response.json();
-          const currentPlan = plans.find(p => p.name.toLowerCase() === userPlan.toLowerCase());
-          if (currentPlan?.maxDownloads) {
-            setAllowedLimit(currentPlan.maxDownloads);
-            localStorage.setItem('user_max_downloads', currentPlan.maxDownloads.toString());
-          }
-        }
+        const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!response.ok) return; // valeurs affichées conservées ; le quota réel reste vérifié au serveur
+        const body = await response.json();
+        const subscription = body.subscription || {};
+        setUserPlan(body.user_plan || 'Free');
+        setAllowedLimit(body.user_max_downloads || 5);
+        setDownloadCount(subscription.downloadsUsed ?? 0);
+        localStorage.setItem('user_plan', body.user_plan || 'Free');
+        localStorage.setItem('user_max_downloads', String(body.user_max_downloads || 5));
       } catch (error) {
-        console.error("Erreur sync API:", error);
+        console.error("Erreur sync /auth/me:", error);
       }
     };
-    syncUserPlanLimit();
-  }, [userPlan]);
-
-  useEffect(() => {
-    if (location.state?.selectedTemplate) {
-      setCvData(prev => ({
-        ...prev,
-        theme: { ...prev.theme, template: location.state.selectedTemplate }
-      }));
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location.state, navigate]);
+    syncEntitlements();
+  }, []);
 
   const [cvData, setCvData] = useState(() => {
-     const templateFromUrl = new URLSearchParams(window.location.search).get('template');
+     // Le template choisi sur /Models arrive via location.state (nouveau montage du composant)
+     const templateFromUrl = location.state?.selectedTemplate
+       || new URLSearchParams(window.location.search).get('template');
      const saved = localStorage.getItem('cv_data_pro');
      
      if (saved) {
@@ -104,6 +103,13 @@ function Create() {
        theme: { sidebarBg: '#1e293b', accentColor: '#3b82f6', template: templateFromUrl || 'modern' }
      };
   });
+
+  // Efface le state de navigation une fois le template pris en compte par l'initialiseur ci-dessus
+  useEffect(() => {
+    if (location.state?.selectedTemplate) {
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, location.pathname, navigate]);
 
   useEffect(() => {
     localStorage.setItem('cv_data_pro', JSON.stringify(cvData));
@@ -147,9 +153,24 @@ function Create() {
       formData.append("cv_file", file);
 
       try {
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/parse-cv`, { method: "POST", body: formData });
-        if (!res.ok) throw new Error("Erreur serveur");
-        const data = await res.json();
+        // parse-cv est protégé côté backend : on transmet le JWT de la session
+        const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
+        const res = await fetch(`${API_BASE_URL}/parse-cv`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: formData
+        });
+
+        if (res.status === 401) {
+          throw new Error("Session expirée, veuillez vous reconnecter.");
+        }
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.message || "Erreur serveur");
+        }
+
+        const body = await res.json();
+        const data = body.data;
         
         setCvData(prev => ({
           ...prev, ...data,
@@ -159,7 +180,7 @@ function Create() {
         
         Swal.fire({ title: 'Extraction réussie !', icon: 'success', background: '#1e293b', color: '#fff', confirmButtonColor: '#3b82f6' });
       } catch (err) {
-        Swal.fire({ title: 'Erreur', text: 'Impossible d\'analyser le PDF.', icon: 'error', background: '#1e293b', color: '#fff' });
+        Swal.fire({ title: 'Erreur', text: err.message || 'Impossible d\'analyser le PDF.', icon: 'error', background: '#1e293b', color: '#fff' });
       }
     } else if (file.type === "application/json" || file.name.endsWith('.json')) {
       const reader = new FileReader();
@@ -229,10 +250,11 @@ function Create() {
 
   const isLimitReached = downloadCount >= allowedLimit;
 
-  const handleDownloadClick = () => {
+  const handleDownloadClick = async () => {
     const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
     if (!token) return Swal.fire({ title: 'Connexion requise', text: 'Vous devez être connecté pour télécharger.', icon: 'warning', background: '#1e293b', color: '#fff' });
 
+    // Optimisation UI : si le quota affiché est déjà atteint, inutile d'appeler le serveur
     if (isLimitReached) {
       Swal.fire({
         title: 'Limite atteinte', text: `Passez à un plan supérieur pour continuer.`,
@@ -241,11 +263,36 @@ function Create() {
       return;
     }
 
-    handlePrint();
-    
-    const newCount = downloadCount + 1;
-    setDownloadCount(newCount);
-    localStorage.setItem('download_count', newCount.toString());
+    try {
+      // Réservation ATOMIQUE du quota côté serveur AVANT toute génération de PDF.
+      // Le serveur reste la source de vérité : le client ne peut pas forcer le compteur.
+      const res = await fetch(`${API_BASE_URL}/downloads/authorize`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          return Swal.fire({ title: 'Session expirée', text: 'Veuillez vous reconnecter pour télécharger votre CV.', icon: 'warning', background: '#1e293b', color: '#fff', confirmButtonColor: '#3b82f6' });
+        }
+        if (body.code === 'QUOTA_EXCEEDED') {
+          setDownloadCount(allowedLimit);
+          return Swal.fire({
+            title: 'Limite atteinte', text: body.message || 'Votre quota de téléchargement est atteint.',
+            icon: 'info', confirmButtonText: 'Voir les offres', background: '#1e293b', color: '#fff', confirmButtonColor: '#3b82f6'
+          }).then((res) => { if (res.isConfirmed) navigate('/plans'); });
+        }
+        throw new Error(body.message || 'Le serveur a refusé le téléchargement.');
+      }
+
+      // Réservation acceptée : génération PDF côté navigateur (react-to-print, inchangé)
+      setDownloadCount(body.data.downloadsUsed);
+      handlePrint();
+    } catch (err) {
+      // Échec = pas de téléchargement (le serveur fait autorité, même hors-ligne)
+      Swal.fire({ title: 'Téléchargement indisponible', text: err.message || 'Serveur injoignable : réessayez plus tard.', icon: 'error', background: '#1e293b', color: '#fff' });
+    }
   };
 
   const updateGeneral = (newData) => {
@@ -274,11 +321,13 @@ function Create() {
 
   const SelectedTemplate = TEMPLATES_MAP[cvData.theme.template] || ModernTemplate;
 
+  // Viewport fixe en desktop (lg+) : la page ne scrolle PLUS, seules les 2 colonnes
+  // scrollent confinées. En mobile : flux naturel, un seul scroll (zone <main>).
   return (
-    <div className="flex flex-col lg:flex-row min-h-screen bg-[#0f172a]">
+    <div className="flex flex-col lg:flex-row lg:h-full lg:min-h-0 lg:overflow-hidden bg-[#0f172a]">
       
-      {/* --- COLONNE GAUCHE : ÉDITEUR --- */}
-      <div className="w-full lg:w-[450px] xl:w-[500px] bg-[#1e293b] border-b lg:border-b-0 lg:border-r border-slate-700 lg:h-screen lg:overflow-y-auto scrollbar-hide flex flex-col">
+      {/* --- COLONNE GAUCHE : ÉDITEUR (scroll confiné en desktop) --- */}
+      <div className="w-full lg:w-[450px] xl:w-[500px] bg-[#1e293b] border-b lg:border-b-0 lg:border-r border-slate-700 lg:h-full lg:min-h-0 lg:overflow-y-auto lg:overflow-x-hidden lg:overscroll-contain flex flex-col">
         
         {/* Header Fixe */}
         <div className="sticky top-0 z-20 bg-[#1e293b]/95 backdrop-blur-sm border-b border-slate-700/50 p-4 sm:p-6 flex items-center justify-between">
@@ -350,8 +399,10 @@ function Create() {
         </div>
       </div>
 
-      {/* --- COLONNE DROITE : PREVIEW VISIBLE --- */}
-      <div className="flex-1 bg-[#0f172a] p-4 sm:p-6 overflow-y-auto flex flex-col items-center gap-6">
+      {/* --- COLONNE DROITE : PREVIEW (scroll confiné en desktop, flux en mobile) ---
+          min-w-0 : indispensable pour qu'un flex-1 puisse rétrécir sous la largeur
+          du CV A4, sinon le 595px pousserait la largeur globale (scroll horizontal). */}
+      <div className="flex-1 min-w-0 bg-[#0f172a] p-4 sm:p-6 lg:overflow-y-auto lg:overflow-x-hidden lg:overscroll-contain flex flex-col items-center gap-6">
         
         {/* Bandeau de téléchargement */}
         <div className="bg-slate-900/80 backdrop-blur border border-slate-800 p-4 rounded-2xl w-full max-w-[595px] flex flex-col sm:flex-row items-center justify-between gap-4 sticky top-4 z-10 shadow-xl">
@@ -373,8 +424,8 @@ function Create() {
           )}
         </div>
 
-        {/* Zone de prévisualisation A4 Parfaite */}
-        <div className="w-full overflow-x-auto pb-8 flex justify-start md:justify-center class-preview-scroll scrollbar-hide">
+        {/* Zone de prévisualisation A4 — scroll horizontal LOCAL uniquement (jamais global) */}
+        <div className="w-full max-w-full overflow-x-auto pb-8 flex justify-start md:justify-center">
           <div 
             ref={componentRef} 
             id="cv-preview" 
@@ -387,7 +438,7 @@ function Create() {
             </div>
 
             {/* Filigrane (Plan Free uniquement) */}
-            {userPlan.toLowerCase() === 'free' && (
+            {isFreePlan(userPlan) && (
               <div className="absolute bottom-2 right-3 text-[9px] text-slate-300/80 font-medium tracking-wider flex items-center gap-1 print:text-slate-400/60 z-50 pointer-events-none select-none">
                 <span>Créé avec</span>
                 <span className="font-bold text-blue-600">CV.Craft</span>

@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
+import Swal from "sweetalert2";
 import { 
   Calendar, 
   User as UserIcon, 
@@ -10,15 +11,17 @@ import {
   RefreshCw,
   Search
 } from "lucide-react";
+import { API_BASE_URL } from "../../api/client";
 
 export default function SubscriptionManager() {
   const [subscriptions, setSubscriptions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(null);
   const [editingId, setEditingId] = useState(null);
   const [editData, setEditData] = useState({});
   const [searchTerm, setSearchTerm] = useState(""); // Ajout d'une recherche
 
-  const API_URL = `${import.meta.env.VITE_API_URL}/subscriptions`;
+  const API_URL = `${API_BASE_URL}/subscriptions`;
   const token = localStorage.getItem("token");
 
   const fetchSubscriptions = useCallback(async () => {
@@ -34,17 +37,24 @@ export default function SubscriptionManager() {
         return;
       }
 
-      const data = await res.json();
-      setSubscriptions(data);
+      const body = await res.json();
+      if (!res.ok || !Array.isArray(body.data)) {
+        throw new Error(body.message || "Réponse inattendue du serveur.");
+      }
+      setSubscriptions(body.data);
+      setLoadError(null);
     } catch (err) {
       console.error("Erreur de chargement des abonnements:", err);
+      // État utilisateur visible (pas seulement console.error)
+      setLoadError("Impossible de charger les abonnements. Vérifiez votre connexion puis réessayez.");
     } finally {
       setLoading(false);
     }
   }, [token, API_URL]);
 
   useEffect(() => {
-    fetchSubscriptions();
+    const run = async () => { await fetchSubscriptions(); };
+    run();
   }, [fetchSubscriptions]);
 
   // Filtrage pour la recherche
@@ -62,7 +72,76 @@ export default function SubscriptionManager() {
     });
   };
 
-  // ... (Garde tes fonctions startEdit, cancelEdit, handleUpdate, handleAction à l'identique)
+  // --- GESTION DE L'ÉDITION / ACTIONS SUR LES ABONNEMENTS (PUT /subscriptions/:id) ---
+  const startEdit = (subscription) => {
+    setEditingId(subscription._id);
+    setEditData({
+      status: subscription.status || "active",
+      endDate: subscription.endDate ? subscription.endDate.slice(0, 10) : "",
+      autoRenew: subscription.autoRenew || false
+    });
+  };
+
+  const cancelEdit = () => {
+    setEditingId(null);
+    setEditData({});
+  };
+
+  const sendUpdate = async (id, payload) => {
+    const res = await fetch(`${API_URL}/${id}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (res.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("userRole");
+      window.location.assign("/login");
+      return null;
+    }
+
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.message || "Mise à jour impossible.");
+    return data;
+  };
+
+  const applyUpdatedSub = (id, updated) => {
+    setSubscriptions(prev => prev.map(sub => (
+      sub._id === id
+        ? { ...sub, status: updated.status, endDate: updated.endDate, autoRenew: updated.autoRenew }
+        : sub
+    )));
+  };
+
+  const handleUpdate = async (id) => {
+    try {
+      const payload = { status: editData.status };
+      if (editData.endDate) payload.endDate = editData.endDate;
+      const updated = await sendUpdate(id, payload);
+      if (updated) {
+        applyUpdatedSub(id, updated);
+        cancelEdit();
+      }
+    } catch (err) {
+      console.error("Erreur mise à jour abonnement:", err);
+      Swal.fire({ title: 'Erreur', text: err.message, icon: 'error', background: '#1e293b', color: '#fff' });
+    }
+  };
+
+  const handleAction = async (subscription, action) => {
+    try {
+      const status = action === "cancel" ? "canceled" : "active";
+      const updated = await sendUpdate(subscription._id, { status });
+      if (updated) applyUpdatedSub(subscription._id, updated);
+    } catch (err) {
+      console.error("Erreur action abonnement:", err);
+      Swal.fire({ title: 'Erreur', text: err.message, icon: 'error', background: '#1e293b', color: '#fff' });
+    }
+  };
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center p-20 text-blue-500 animate-pulse">
@@ -94,6 +173,13 @@ export default function SubscriptionManager() {
           />
         </div>
       </div>
+
+      {loadError && (
+        <div className="mx-6 mt-4 flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+          <AlertCircle size={16} className="flex-shrink-0" />
+          {loadError}
+        </div>
+      )}
 
       <div className="overflow-x-auto">
         <table className="w-full text-left border-separate border-spacing-0">

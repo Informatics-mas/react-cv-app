@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Check, 
   Zap, 
@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import Swal from 'sweetalert2';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/useAuth';
+import { API_BASE_URL } from '../api/client';
 
 const PlanCards = () => {
   const navigate = useNavigate();
@@ -22,32 +24,19 @@ const PlanCards = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // États pour la Navbar interactive
-  const [userName, setUserName] = useState('');
-  const [userPlan, setUserPlan] = useState(() => localStorage.getItem('user_plan') || 'Gratuit');
-  const [allowedLimit, setAllowedLimit] = useState(() => {
-    const savedLimit = localStorage.getItem('user_max_downloads');
-    return savedLimit ? parseInt(savedLimit, 10) : 5;
-  });
-  const [downloadCount, setDownloadCount] = useState(() => {
-    const savedCount = localStorage.getItem('download_count');
-    return savedCount ? parseInt(savedCount, 10) : 0;
-  });
-
-  // Gestion du menu déroulant (Dropdown profil)
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  // Plan actuel = valeur renvoyée par le serveur via AuthProvider (un seul /auth/me)
+  const { user } = useAuth();
+  const currentPlan = user?.user_plan || null;
+  const isAuthenticated = Boolean(localStorage.getItem('token') || localStorage.getItem('adminToken'));
 
   useEffect(() => {
-    const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
-
-    // 1. Récupération des plans d'abonnement disponibles
+    // Récupération des plans d'abonnement disponibles (source : base via l'API)
     const fetchPlans = async () => {
       try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/plans`);
+        const response = await fetch(`${API_BASE_URL}/plans`);
         if (!response.ok) throw new Error("Impossible de récupérer les plans");
-        const data = await response.json();
-        setPlans(data);
+        const body = await response.json();
+        setPlans(body.data);
       } catch (error) {
         console.error("Erreur API Plans:", error);
         setError("Erreur de connexion au serveur.");
@@ -56,44 +45,18 @@ const PlanCards = () => {
       }
     };
 
-    // 2. Récupération des infos de l'utilisateur connecté (Navbar)
-    const fetchUserProfile = async () => {
-      if (!token) return;
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        });
-        if (response.ok) {
-          const userData = await response.json();
-          setUserName(userData.name || '');
-          setUserPlan(userData.user_plan || 'Gratuit');
-          setAllowedLimit(userData.user_max_downloads || 5);
-        }
-      } catch (error) {
-        console.error("Erreur lors de la récupération du profil:", error);
-      }
-    };
-
     fetchPlans();
-    fetchUserProfile();
-  }, []);
-
-  // Fermer le menu déroulant si on clique en dehors
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const handleSelectPlan = (plan) => {
+    // Non connecté : le serveur refuse de toute façon (protect) → on affiche le login
+    if (!isAuthenticated) {
+      navigate('/login');
+      return;
+    }
+    // Déjà sur ce plan : pas d'action (bouton désactivé)
+    if (currentPlan === plan.name) return;
+
     if (plan.price > 0) {
       Swal.fire({
         title: `Prendre le plan ${plan.name} ?`,
@@ -130,7 +93,7 @@ const PlanCards = () => {
         try {
           const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
           
-          const response = await fetch(`${import.meta.env.VITE_API_URL}/subscriptions/subscribe`, {
+          const response = await fetch(`${API_BASE_URL}/subscriptions/subscribe`, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -161,7 +124,7 @@ const PlanCards = () => {
             confirmButtonColor: '#3b82f6'
           });
         
-          navigate(localStorage.getItem('token') ? '/Home' : '/UserHome');
+          navigate(localStorage.getItem('token') ? '/Home' : '/login');
         
         } catch (error) {
           console.error("Erreur plan gratuit :", error);
@@ -177,19 +140,14 @@ const PlanCards = () => {
     });
   };
 
-  const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = "/"; 
-  };
-
   const getBackPath = () => {
     if (localStorage.getItem('token')) return '/Home';
-    if (localStorage.getItem('adminToken')) return '/UserHome'; 
+    if (localStorage.getItem('adminToken')) return '/Admin'; 
     return '/'; 
   };
 
  if (loading) return (
-    <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
+    <div className="min-h-full bg-[#0f172a] text-white font-sans flex flex-col antialiased">
       <div className="py-16 px-4 max-w-7xl mx-auto flex-grow w-full">
         
         {/* En-tête statique affiché pendant le chargement */}
@@ -238,7 +196,7 @@ const PlanCards = () => {
   );
 
   if (error) return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-[#0f172a] text-slate-400">
+    <div className="flex flex-col items-center justify-center min-h-full bg-[#0f172a] text-slate-400">
       <AlertTriangle size={48} className="text-amber-500 mb-4" />
       <p>{error}</p>
       <Link to={getBackPath()} className="mt-4 text-blue-500 hover:underline">Retour</Link>
@@ -246,7 +204,7 @@ const PlanCards = () => {
   );
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
+    <div className="min-h-full bg-[#0f172a] text-white font-sans flex flex-col antialiased">
       {/* --- CONTENU --- */}
       <div className="py-16 px-4 max-w-7xl mx-auto flex-grow">
         <div className="text-center mb-16">
@@ -259,7 +217,15 @@ const PlanCards = () => {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-          {plans.map((plan) => (
+          {plans.map((plan) => {
+            const isCurrentPlan = isAuthenticated && currentPlan === plan.name;
+            const buttonLabel = !isAuthenticated
+              ? 'Se connecter'
+              : isCurrentPlan
+                ? 'Plan actuel'
+                : plan.price === 0 ? 'Commencer Gratuitement' : 'Choisir ce plan';
+
+            return (
             <div 
               key={plan._id}
               className={`relative flex flex-col p-8 rounded-3xl border transition-all duration-300 hover:translate-y-[-8px] ${
@@ -305,17 +271,21 @@ const PlanCards = () => {
 
               <button
                 onClick={() => handleSelectPlan(plan)}
+                disabled={isCurrentPlan}
                 className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all flex items-center justify-center gap-2 ${
-                  plan.isPopular 
+                  isCurrentPlan
+                  ? 'bg-slate-800/60 border border-slate-700 text-slate-500 cursor-not-allowed'
+                  : plan.isPopular 
                   ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-xl shadow-blue-600/20' 
                   : 'bg-slate-800 hover:bg-slate-700 text-white'
                 }`}
               >
-                {plan.price === 0 ? 'Commencer Gratuitement' : 'Choisir ce plan'}
-                <Zap size={16} fill={plan.isPopular ? "currentColor" : "none"} />
+                {buttonLabel}
+                {!isCurrentPlan && <Zap size={16} fill={plan.isPopular ? "currentColor" : "none"} />}
               </button>
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* --- FOOTER SÉCURITÉ --- */}

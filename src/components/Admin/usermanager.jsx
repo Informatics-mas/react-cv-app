@@ -11,6 +11,7 @@ import {
   MoreVertical,
   AlertCircle
 } from "lucide-react";
+import { API_BASE_URL } from "../../api/client";
 
 export default function UserManager() {
   const [users, setUsers] = useState([]);
@@ -18,7 +19,7 @@ export default function UserManager() {
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const API_URL = `${import.meta.env.VITE_API_URL}/users`;
+  const API_URL = `${API_BASE_URL}/users`;
   const token = localStorage.getItem("token");
 
   const fetchUsers = useCallback(async () => {
@@ -46,8 +47,8 @@ export default function UserManager() {
 
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
       
-      const data = await res.json();
-      setUsers(data);
+      const body = await res.json();
+      setUsers(body.data);
     } catch (err) {
       console.error("Erreur de chargement des utilisateurs:", err);
       if (err.message === "401") {
@@ -64,7 +65,8 @@ export default function UserManager() {
   }, [API_URL]);
 
   useEffect(() => {
-    fetchUsers();
+    const run = async () => { await fetchUsers(); };
+    run();
   }, [fetchUsers]);
 
   const handleDelete = async (userId) => {
@@ -79,7 +81,7 @@ export default function UserManager() {
       if (!res.ok) throw new Error("Erreur lors de la suppression");
 
       setUsers((prev) => prev.filter((user) => user._id !== userId));
-    } catch (err) {
+    } catch {
       alert("Erreur technique lors de la suppression.");
     }
   };
@@ -179,11 +181,11 @@ export default function UserManager() {
                   <td className="py-4 px-6">
                     <div className="text-xs text-slate-400 flex items-center gap-2">
                       <Calendar size={14} className="text-slate-600" />
-                      {new Date(user.createdAt || Date.now()).toLocaleDateString("fr-FR", {
+                      {user.createdAt ? new Date(user.createdAt).toLocaleDateString("fr-FR", {
                         day: "numeric",
                         month: "long",
                         year: "numeric"
-                      })}
+                      }) : "—"}
                     </div>
                   </td>
 

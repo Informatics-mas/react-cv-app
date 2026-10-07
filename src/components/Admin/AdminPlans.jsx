@@ -11,6 +11,7 @@ import {
   X,
   Download
 } from "lucide-react";
+import { API_BASE_URL } from "../../api/client";
 
 export default function AdminPlans() {
   const [plans, setPlans] = useState([]);
@@ -30,7 +31,7 @@ export default function AdminPlans() {
     isPopular: false
   });
 
-  const API_URL = `${import.meta.env.VITEAPI_URL}/plans`;
+  const API_URL = `${API_BASE_URL}/plans`;
   const token = localStorage.getItem("token");
 
   // --- CHARGEMENT DES PLANS ---
@@ -49,8 +50,8 @@ export default function AdminPlans() {
       }
 
       if (!res.ok) throw new Error("Erreur lors de la récupération des plans");
-      const data = await res.json();
-      setPlans(data);
+      const body = await res.json();
+      setPlans(body.data);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -59,7 +60,8 @@ export default function AdminPlans() {
   }, [API_URL, token]);
 
   useEffect(() => {
-    fetchPlans();
+    const run = async () => { await fetchPlans(); };
+    run();
   }, [fetchPlans]);
 
   // --- SOUMISSION (CRÉER OU MODIFIER) ---
@@ -107,7 +109,7 @@ export default function AdminPlans() {
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) fetchPlans();
-    } catch (err) {
+    } catch {
       setError("Erreur lors de la suppression");
     }
   };

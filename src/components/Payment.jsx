@@ -14,6 +14,7 @@ import {
   DownloadCloud
 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { API_BASE_URL } from '../api/client';
 
 export default function Payment() {
   const location = useLocation();
@@ -24,21 +25,6 @@ export default function Payment() {
   
   const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' ou 'mobile'
   const [loading, setLoading] = useState(false);
-  
-  // États locaux pour la Navbar typique de ton site (lus depuis le localStorage)
-  const [userPlan, setUserPlan] = useState(() => {
-    return localStorage.getItem('user_plan') || 'Gratuit';
-  });
-
-  const [allowedLimit, setAllowedLimit] = useState(() => {
-    const savedLimit = localStorage.getItem('user_max_downloads');
-    return savedLimit ? parseInt(savedLimit, 10) : 5;
-  });
-
-  const [downloadCount, setDownloadCount] = useState(() => {
-    const savedCount = localStorage.getItem('download_count');
-    return savedCount ? parseInt(savedCount, 10) : 0;
-  });
 
   const [formData, setFormData] = useState({
     cardNumber: '',
@@ -71,13 +57,6 @@ export default function Payment() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("cv_data_pro");
-    window.location.href = "/"; 
-  };
-
   const handleSubmitPayment = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -87,7 +66,7 @@ export default function Payment() {
       if (!token) throw new Error("Utilisateur non authentifié ou session expirée.");
 
       // Appel à ton API Backend pour enregistrer la souscription
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/subscriptions/subscribe`, {
+      const response = await fetch(`${API_BASE_URL}/subscriptions/subscribe`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -121,7 +100,7 @@ export default function Payment() {
       });
 
       // Redirection vers l'espace utilisateur
-      navigate(localStorage.getItem('token') ? '/Home' : '/UserHome');
+      navigate(localStorage.getItem('token') ? '/Home' : '/login');
 
     } catch (error) {
       console.error("Erreur Paiement:", error);
@@ -139,7 +118,7 @@ export default function Payment() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
+    <div className="min-h-full bg-[#0f172a] text-white font-sans flex flex-col antialiased">
       {/* Barre de fil d'Ariane / Retour */}
       <div className="max-w-5xl w-full mx-auto px-6 pt-6">
         <Link to="/plans" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors">

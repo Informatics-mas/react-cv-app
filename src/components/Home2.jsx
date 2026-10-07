@@ -1,108 +1,59 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/useAuth';
+import { clearAuthStorage } from '../utils/authStorage';
 import { 
   FileText, 
   Sparkles, 
   LayoutTemplate, 
-  Heart, 
-  LogOut, 
-  Mail, 
   ArrowRight,
   User,
   CreditCard,
   PlusCircle,
   DownloadCloud,
-  CheckCircle2,
-  ChevronDown,
-  Bell,
-  MessageSquare
+  CheckCircle2
 } from 'lucide-react';
 
 function Home2() {
   const navigate = useNavigate();
-  
-  // États synchronisés avec l'API en direct
-  const [userName, setUserName] = useState(''); // Contient le nom de l'utilisateur
-  const [userPlan, setUserPlan] = useState('Gratuit');
-  const [allowedLimit, setAllowedLimit] = useState(5);
-  const [downloadCount, setDownloadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
 
-  // Gestion du menu déroulant (Dropdown profil)
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
+  // Profil partagé via AuthProvider : un SEUL /auth/me pour toute l'application
+  const { user, loading: authLoading, isAuthenticated, reason } = useAuth();
+
+  // Valeurs affichées = calculées par le serveur (état effectif de l'abonnement)
+  const userName = user?.name || '';
+  const userPlan = user?.user_plan || 'Free';
+  const allowedLimit = user?.user_max_downloads || 5;
+  const downloadCount = user?.subscription?.downloadsUsed ?? 0;
+  // Skeleton pendant le chargement, ou tant qu'un token n'a pas encore de profil valide.
+  // Sur erreur réseau (reason === "network") : on affiche la page avec les valeurs de repli
+  // plutôt que de déconnecter l'utilisateur hors-ligne.
+  const loading = authLoading || (isAuthenticated && !user && reason !== 'network');
 
   // --- RECUPERATION DU STATUT EN TEMPS REEL ---
-  useEffect(() => {
-    let isMounted = true;
-
-    const fetchUserProfile = async () => {
-      const token = localStorage.getItem("token");
-      
-      if (!token) {
-        console.log("Aucun token trouvé, redirection...");
-        navigate("/");
-        return;
-      }
-
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        });
-
-        if (response.ok && isMounted) {
-          const userData = await response.json();
-          
-          // Récupération et sauvegarde des données de l'utilisateur
-          setUserName(userData.name || ''); 
-          setUserPlan(userData.user_plan || 'Gratuit');
-          setAllowedLimit(userData.user_max_downloads || 5);
-          
-          localStorage.setItem('user_plan', userData.user_plan || 'Gratuit');
-          localStorage.setItem('user_max_downloads', userData.user_max_downloads || 5);
-        } else if ((response.status === 401 || response.status === 403) && isMounted) {
-          handleLogout();
-        }
-      } catch (error) {
-        console.error("Erreur réseau lors du fetch /me :", error);
-      } finally {
-        if (isMounted) setLoading(false);
-      }
-    };
-
-    const savedCount = localStorage.getItem('download_count');
-    setDownloadCount(savedCount ? parseInt(savedCount, 10) : 0);
-
-    fetchUserProfile();
-
-    return () => {
-      isMounted = false;
-    };
-  }, [navigate]);
-
-  // Fermer le menu déroulant si on clique en dehors
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+  // useCallback : identité stable pour ne pas re-déclencher l'effet à chaque rendu
+  const handleLogout = useCallback(() => {
+    // Déconnexion propre : uniquement les clés d'authentification.
+    // Les données locales du CV (cv_data_pro) sont préservées.
+    clearAuthStorage();
+    window.location.href = "/";
   }, []);
 
-  const handleLogout = () => {
-    localStorage.clear();
-    window.location.href = "/"; 
-  };
+  useEffect(() => {
+    // Espace réservé aux utilisateurs connectés (ProtectedRoute gère déjà le cas nominal)
+    if (!isAuthenticated) {
+      navigate("/");
+      return;
+    }
+    // Token présent mais refusé par l'API (401/403) : session à nettoyer proprement
+    if (!authLoading && !user && reason === "unauthorized") {
+      handleLogout();
+    }
+  }, [isAuthenticated, authLoading, user, reason, navigate, handleLogout]);
 
-if (loading) {
+  if (loading) {
     return (
-      <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
+      <div className="min-h-full bg-[#0f172a] text-white font-sans flex flex-col antialiased">
         <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-12 lg:py-20 flex-grow animate-pulse">
           
           {/* Skeleton : Bandeau de bienvenue (Haut) */}
@@ -169,7 +120,7 @@ if (loading) {
   }
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
+    <div className="min-h-full bg-[#0f172a] text-white font-sans flex flex-col antialiased">
       {/* --- TABLEAU DE BORD UTILISATEUR --- */}
       <main className="max-w-7xl w-full mx-auto px-4 sm:px-6 py-12 lg:py-20 flex-grow">
         

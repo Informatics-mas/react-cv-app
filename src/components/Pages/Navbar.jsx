@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
+import { isFreePlan } from '../../constants';
+import { useAuth } from '../../context/useAuth';
+import { clearAuthStorage } from '../../utils/authStorage';
 import { 
   FileText, 
   ArrowRight,
@@ -12,55 +15,25 @@ import {
 } from 'lucide-react';
 
 function Navbar() {
-  const navigate = useNavigate();
   const location = useLocation();
   
-  const token = localStorage.getItem("token") || localStorage.getItem("adminToken");
-  const isAuthenticated = !!token;
+  // Profil partagé : un seul /auth/me pour tout l'app (AuthProvider)
+  const { user, isAuthenticated } = useAuth();
 
-  const [userName, setUserName] = useState('');
-  const [userPlan, setUserPlan] = useState(() => localStorage.getItem('user_plan') || 'Gratuit');
-  const [allowedLimit, setAllowedLimit] = useState(() => parseInt(localStorage.getItem('user_max_downloads') || '5', 10));
-  const [downloadCount, setDownloadCount] = useState(() => parseInt(localStorage.getItem('download_count') || '0', 10));
+  // Valeurs affichées = réponse serveur ; repli localStorage uniquement avant le premier rendu
+  const userName = user?.name || '';
+  const userPlan = user?.user_plan || localStorage.getItem('user_plan') || 'Free';
+  const allowedLimit = user?.user_max_downloads ?? parseInt(localStorage.getItem('user_max_downloads') || '5', 10);
+  const downloadCount = user?.subscription?.downloadsUsed ?? parseInt(localStorage.getItem('download_count') || '0', 10);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   const getDashboardPath = () => {
     if (localStorage.getItem('token')) return '/Home';
-    if (localStorage.getItem('adminToken')) return '/UserHome';
+    if (localStorage.getItem('adminToken')) return '/Admin';
     return '/';
   };
-
-  useEffect(() => {
-    if (!isAuthenticated) return;
-
-    const fetchUserProfile = async () => {
-      try {
-        const response = await fetch(`${import.meta.env.VITE_API_URL}/auth/me`, {
-          method: "GET",
-          headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-          }
-        });
-
-        if (response.ok) {
-          const userData = await response.json();
-          setUserName(userData.name || ''); 
-          setUserPlan(userData.user_plan || 'Gratuit');
-          setAllowedLimit(userData.user_max_downloads || 5);
-          
-          localStorage.setItem('user_plan', userData.user_plan || 'Gratuit');
-          localStorage.setItem('user_max_downloads', userData.user_max_downloads || 5);
-        }
-      } catch (error) {
-        console.error("Erreur réseau lors du fetch /me :", error);
-      }
-    };
-
-    fetchUserProfile();
-  }, [isAuthenticated, token]);
 
   useEffect(() => {
     function handleClickOutside(event) {
@@ -73,19 +46,11 @@ function Navbar() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("cv_data_pro");
+    // Déconnexion propre : uniquement les clés d'authentification.
+    // Le CV local (cv_data_pro) est préservé pour la prochaine session.
+    clearAuthStorage();
     window.location.href = "/"; 
   };
-
-  const prevLocation = useRef(location.pathname);
-  
-  useEffect(() => {
-    if (prevLocation.current !== location.pathname) {
-      window.location.reload();
-    }
-  }, [location.pathname]);
 
   return (
     <nav className="w-full border-b border-slate-800/80 bg-[#0f172a] backdrop-blur-md sticky top-0 z-50">
@@ -104,30 +69,30 @@ function Navbar() {
           
           {!isAuthenticated ? (
             <>
-              {/* Remplacement de Link par <a> */}
-              <a 
-                href="/Models" 
+              {/* Navigation interne via React Router : pas de rechargement complet de la page */}
+              <Link 
+                to="/Models" 
                 className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-full font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-1.5"
               >
                 Modèles <ArrowRight size={14} />
-              </a>
-              <a 
-                href="/login" 
+              </Link>
+              <Link 
+                to="/login" 
                 className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-full font-bold text-xs sm:text-sm transition-all shadow-lg shadow-blue-600/20"
               >
                 Login
-              </a>
+              </Link>
             </>
           ) : (
             <>
               {location.pathname !== '/Models' && (
-                <a 
-                  href="/Models" 
+                <Link 
+                  to="/Models" 
                   className="hidden sm:flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white transition-all"
                 >
                   <LayoutTemplate size={14} className="text-blue-500" />
                   <span>Modèles</span>
-                </a>
+                </Link>
               )}
 
               <div className="relative" ref={dropdownRef}>
@@ -149,7 +114,7 @@ function Navbar() {
                       <div className="flex items-center justify-between mt-1">
                         <span className="text-xs font-bold text-slate-300">Formule actuelle</span>
                         <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
-                          userPlan.toLowerCase() === 'gratuit' || userPlan.toLowerCase() === 'free' 
+                          isFreePlan(userPlan) 
                             ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20' 
                             : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                         }`}>
@@ -169,23 +134,23 @@ function Navbar() {
                     </div>
 
                     <div className="py-1.5">
-                      <a 
-                        href={getDashboardPath()} 
+                      <Link 
+                        to={getDashboardPath()} 
                         onClick={() => setDropdownOpen(false)}
                         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
                       >
                         <User size={15} className="text-slate-500" />
                         <span>Mon Espace {userName ? `(${userName})` : ''}</span>
-                      </a>
+                      </Link>
                       
-                      <a 
-                        href="/Plans" 
+                      <Link 
+                        to="/Plans" 
                         onClick={() => setDropdownOpen(false)}
                         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
                       >
                         <CreditCard size={15} className="text-slate-500" />
                         <span>Changer de formule</span>
-                      </a>
+                      </Link>
                     </div>
 
                     <div className="border-t border-slate-700/60 pt-1.5 mt-1">

@@ -2,7 +2,7 @@
 import { User, Mail, Phone, MapPin, CalendarDays, Zap, Languages } from 'lucide-react';
 
 const BenjaminTemplate = ({ data }) => {
-  const { general, education, experience, skills, langue, hobbi, theme } = data;
+  const { general, education, experience, skills, langue, theme } = data;
 
   // Configuration par défaut si les données sont absentes
   const fallbackEmail = "email@exemple.com";

@@ -2,7 +2,7 @@ import React from 'react';
 import { User, Briefcase, Settings, GraduationCap, Mail, Phone, MapPin } from 'lucide-react';
 
 const ClassicGreyTemplate = ({ data }) => {
-  const { general, education, experience, skills, hobbi, theme } = data;
+  const { general, education, experience, skills, hobbi } = data;
 
   const fallbackEmail = "marie.bernard@mail.com";
   const fallbackPhone = "06 12 34 56 78";

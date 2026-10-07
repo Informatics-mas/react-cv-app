@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { SUBSCRIPTION_STATUS } from "../constants.js";
 
 const SubscriptionSchema = new mongoose.Schema({
   userId: {
@@ -23,10 +24,10 @@ const SubscriptionSchema = new mongoose.Schema({
   status: {
     type: String,
     enum: {
-      values: ['active', 'expired', 'canceled'],
+      values: Object.values(SUBSCRIPTION_STATUS),
       message: '{VALUE} n\'est pas un statut valide'
     },
-    default: 'active'
+    default: SUBSCRIPTION_STATUS.ACTIVE
   },
   // Optionnel : pour savoir si le renouvellement auto est activé
   autoRenew: {

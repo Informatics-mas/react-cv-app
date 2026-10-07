@@ -2,7 +2,7 @@
 import { Mail, Phone, MapPin, Globe } from 'lucide-react';
 
 const ClassicTemplate = ({ data }) => {
-  const { general, education, experience, skills, langue, hobbi, theme } = data;
+  const { general, education, experience, skills, langue, theme } = data;
 
   return (
     <div className="w-full min-h-[842px] bg-white p-12 text-slate-800">

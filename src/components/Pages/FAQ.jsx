@@ -83,7 +83,7 @@ function FAQ() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
+    <div className="min-h-full bg-[#0f172a] text-white font-sans flex flex-col antialiased">
       
       {/* --- HERO SECTION --- */}
       <div className="relative pt-20 pb-16 px-4 sm:px-6 text-center border-b border-slate-800/60 bg-gradient-to-b from-slate-900 to-[#0f172a]">

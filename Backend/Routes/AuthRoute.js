@@ -1,11 +1,15 @@
 import express from "express";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+// Import explicite : la config ESLint utilise globals.browser, "process" n'est donc pas déclaré
+import process from "node:process";
 import { z } from "zod";
 import rateLimit from "express-rate-limit";
 import User from "../Models/user.js";
 import { sendWelcomeEmail } from '../utils/emailService.js';
 import { protect } from "../Middleware/AuthMiddleware.js";
+import { getEffectiveEntitlements } from "../utils/entitlements.js";
+import { USER_ROLES, PLAN_NAMES } from "../constants.js";
 
 const router = express.Router();
 
@@ -36,7 +40,7 @@ router.post("/register", authLimiter, async (req, res) => {
     const validation = registerSchema.safeParse(req.body);
     
     if (!validation.success) {
-      return res.status(400).json({ message: validation.error.errors[0].message });
+      return res.status(400).json({ message: validation.error.issues[0].message });
     }
 
     const { name, email, password } = validation.data;
@@ -53,8 +57,8 @@ router.post("/register", authLimiter, async (req, res) => {
       name,
       email,
       password: hashedPassword,
-      role: "user",
-      user_plan: "Gratuit",
+      role: USER_ROLES.USER,
+      user_plan: PLAN_NAMES.FREE,
       user_max_downloads: 5
     });
 
@@ -101,7 +105,7 @@ router.post("/login", authLimiter, async (req, res) => {
     const validation = loginSchema.safeParse(req.body);
     
     if (!validation.success) {
-      return res.status(400).json({ message: validation.error.errors[0].message });
+      return res.status(400).json({ message: validation.error.issues[0].message });
     }
 
     const { email, password } = validation.data;
@@ -146,21 +150,33 @@ router.post("/login", authLimiter, async (req, res) => {
 });
 
 // --- NOUVELLE ROUTE : Obtenir le profil connecté en temps réel ---
+// Le plan/le quota renvoyés sont CALCULÉS côté serveur (abonnement effectif +
+// expiration endDate < now), jamais lus dans le localStorage du client.
 router.get("/me", protect, async (req, res) => {
   try {
-    const user = await User.findById(req.user.id).select("-password");
-    
-    if (!user) {
+    const entitlements = await getEffectiveEntitlements(req.user.id);
+
+    if (!entitlements) {
       return res.status(404).json({ message: "Utilisateur non trouvé" });
     }
-    
+
+    const user = entitlements.user;
+
     res.json({
       _id: user._id,
       name: user.name,
       email: user.email,
       role: user.role,
-      user_plan: user.user_plan || "Gratuit",
-      user_max_downloads: user.user_max_downloads || 5
+      user_plan: entitlements.planName,
+      user_max_downloads: entitlements.maxDownloads,
+      subscription: {
+        plan: entitlements.planName,
+        status: entitlements.status,
+        endDate: entitlements.endDate,
+        maxDownloads: entitlements.maxDownloads,
+        downloadsUsed: entitlements.downloadsUsed,
+        remaining: entitlements.remaining
+      }
     });
 
   } catch (error) {

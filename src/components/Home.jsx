@@ -37,7 +37,7 @@ function Home() {
   }, [carouselItems.length]);
 
   return (
-    <div className="min-h-screen bg-[#131b2e] text-white font-sans flex flex-col overflow-x-hidden">
+    <div className="min-h-full bg-[#131b2e] text-white font-sans flex flex-col overflow-x-hidden">
       {/* Hero Section - Flex-col sur mobile, Flex-row sur Desktop */}
       <main className="max-w-7xl mx-auto w-full px-4 sm:px-6 py-12 lg:py-24 flex flex-col lg:flex-row items-center justify-between gap-12 lg:gap-8 flex-1">
         

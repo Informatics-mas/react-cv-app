@@ -4,9 +4,6 @@ import { User, Mail, Phone, Rocket, Orbit, Zap, BrainCircuit, Globe } from 'luci
 const FuturisticTemplate = ({ data }) => {
   const { general, education, experience, skills, langue, theme } = data;
 
-  // Couleur d'accentuation très légère pour les fonds
-  const accentLight = `${theme.accentColor}08`; 
-
   return (
     <div className="w-full min-h-[297mm] bg-[#f8fafc] text-slate-800 font-sans flex flex-col print:w-[210mm]">
       

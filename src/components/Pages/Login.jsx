@@ -4,6 +4,9 @@ import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Lock, Mail, Loader2, FileText, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { FaGoogle, FaApple } from 'react-icons/fa';
 import { BiError } from "react-icons/bi";
+import { api } from "../../api/client";
+import { USER_ROLES } from "../../constants";
+import { useAuth } from "../../context/useAuth";
 
 export default function Login() {
   const [email, setEmail] = useState("");
@@ -14,6 +17,7 @@ export default function Login() {
   
   const navigate = useNavigate();
   const location = useLocation();
+  const { refresh } = useAuth(); // recharge le profil via AuthProvider
 
   useEffect(() => {
     const token = localStorage.getItem("token");
@@ -21,7 +25,7 @@ export default function Login() {
 
     if (token && savedRole) {
       if (savedRole.toLowerCase() === "admin") {
-        navigate("/Adminhome");
+        navigate("/Admin");
       } else {
         navigate("/Home");
       }
@@ -34,20 +38,15 @@ export default function Login() {
     setError("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
-      });
+      const data = await api.post("/auth/login", { email, password });
 
-      const data = await res.json();
-
-      if (res.ok && data.token) {
+      if (data.token) {
        const storage = window.localStorage;
         storage.setItem("token", data.token);
         storage.setItem("userRole", data.user.role); 
+        refresh(); //(AuthProvider) : le profil est rechargé pour tout l'app
 
-       const isAdmin = String(data.user?.role) === 'admin';
+       const isAdmin = String(data.user?.role) === USER_ROLES.ADMIN;
         if (isAdmin) {
           navigate("/Admin");
         } else {
@@ -55,17 +54,18 @@ export default function Login() {
           navigate(origin);
         }
       } else {
-        setError(data.message || "Email ou mot de passe incorrect.");
+        setError("Email ou mot de passe incorrect.");
       }
     } catch (err) {
-      setError("Le serveur est injoignable. Vérifiez votre connexion.");
+      // ApiError : message serveur traduit, jamais de texte technique
+      setError(err.message || "Le serveur est injoignable. Vérifiez votre connexion.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#131b2e] bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#1a2e5a] via-[#0B1A3B] to-black p-4">
+    <div className="min-h-full flex flex-col items-center justify-center bg-[#131b2e] bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#1a2e5a] via-[#0B1A3B] to-black p-4">
       
       <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium mb-6">
                   <ArrowLeft size={16} />

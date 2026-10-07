@@ -22,7 +22,7 @@ router.get("/", protect, adminOnly, async (req, res) => {
       .limit(limit);
       
     res.json(users);
-  } catch (error) {
+  } catch {
     res.status(500).json({ message: "Erreur lors de la récupération des utilisateurs" });
   }
 });
@@ -41,7 +41,7 @@ router.delete("/:id", protect, adminOnly, async (req, res) => {
     } else {
       res.status(404).json({ message: "Utilisateur non trouvé" });
     }
-  } catch (error) {
+  } catch {
     res.status(500).json({ message: "Erreur lors de la suppression" });
   }
 });

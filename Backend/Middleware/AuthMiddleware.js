@@ -1,4 +1,6 @@
 import jwt from "jsonwebtoken";
+// Import explicite : la config ESLint utilise globals.browser, "process" n'est donc pas déclaré
+import process from "node:process";
 import User from "../Models/user.js";
 
 export const protect = async (req, res, next) => {

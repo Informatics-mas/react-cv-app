@@ -1,4 +1,5 @@
 import mongoose from "mongoose";
+import { USER_ROLES } from "../constants.js";
 
 const UserSchema = new mongoose.Schema({
   name: {
@@ -19,8 +20,8 @@ const UserSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['user', 'admin', 'premium'], 
-    default: 'user' 
+    enum: Object.values(USER_ROLES),
+    default: USER_ROLES.USER
   },
   user_plan: {
     type: String,
@@ -29,6 +30,12 @@ const UserSchema = new mongoose.Schema({
   user_max_downloads: {
     type: Number,
     default: 5
+  },
+  // Compteur de téléchargements (incrémenté uniquement par le serveur, façon atomique)
+  downloadsUsed: {
+    type: Number,
+    default: 0,
+    min: 0
   }
 }, { 
   timestamps: true 

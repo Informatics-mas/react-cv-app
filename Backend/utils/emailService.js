@@ -1,5 +1,7 @@
 // services/emailService.js
 import nodemailer from 'nodemailer';
+// Import explicite : la config ESLint utilise globals.browser, "process" n'est donc pas déclaré
+import process from "node:process";
 
 /**
  * Fonction interne pour créer le transporteur SMTP à la demande.

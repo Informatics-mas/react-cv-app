@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { 
   FileText, 
@@ -17,39 +17,18 @@ import {
   MessageSquare
 } from 'lucide-react';
 import Swal from 'sweetalert2';
+import { planLevel } from '../constants';
 
 function Models() {
   const navigate = useNavigate();
   
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const dropdownRef = useRef(null);
-
   // Récupération du plan actuel de l'utilisateur
   const [userPlan] = useState(() => {
     return localStorage.getItem('user_plan') || 'Free'; // 'Free', 'Basic', ou 'Premium'
   });
 
-  const [allowedLimit] = useState(() => {
-    return parseInt(localStorage.getItem('user_max_downloads') || '5', 10);
-  });
-
-  const [downloadCount] = useState(() => {
-    return parseInt(localStorage.getItem('download_count') || '0', 10);
-  });
-
-  // Fermer le menu déroulant si on clique en dehors
-  useEffect(() => {
-    function handleClickOutside(event) {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-        setDropdownOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
-
-  // Définition de la hiérarchie des plans pour restreindre les accès
-  const planHierarchy = { 'Free': 1, 'Basic': 2, 'Premium': 3 };
+  // Hiérarchie des plans pour restreindre les accès (valeurs alignées sur Backend/constants.js)
+  const planHierarchy = { 'Free': planLevel('Free'), 'Basic': planLevel('Basic'), 'Premium': planLevel('Premium') };
 
   // Tableau enrichi avec les accès (plan requis)
   const CV_MODELS = [
@@ -70,15 +49,8 @@ function Models() {
 
   const getBackPath = () => {
     if (localStorage.getItem('token')) return '/Home';
-    if (localStorage.getItem('token')) return '/UserHome';
+    if (localStorage.getItem('adminToken')) return '/Admin';
     return '/';
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("adminToken");
-    localStorage.removeItem("cv_data_pro");
-    window.location.href = "/"; 
   };
 
   // Validation de l'accès au modèle choisi
@@ -111,7 +83,7 @@ function Models() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0f172a] text-white font-sans flex flex-col antialiased">
+    <div className="min-h-full bg-[#0f172a] text-white font-sans flex flex-col antialiased">
       {/* Barre de retour */}
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6">
         <Link to={getBackPath()} className="inline-flex items-center gap-2 text-xs sm:text-sm text-slate-400 hover:text-white transition-colors">

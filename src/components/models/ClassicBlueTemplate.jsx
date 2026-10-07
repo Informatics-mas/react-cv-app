@@ -1,11 +1,13 @@
+// Helper au niveau module : créer un composant pendant le render provoquait
+// un remontage à chaque rendu (règle react-hooks/static-components).
+const BadgeTitle = ({ children }) => (
+  <h3 className="bg-[#3b4b8a] text-white px-4 py-1.5 rounded-full text-[14px] font-bold uppercase mb-4 tracking-wider">
+    {children}
+  </h3>
+);
+
 const ClassicBlueTemplate = ({ data }) => {
   const { general, education, experience, skills, langue, hobbi } = data;
-
-  const BadgeTitle = ({ children }) => (
-    <h3 className="bg-[#3b4b8a] text-white px-4 py-1.5 rounded-full text-[14px] font-bold uppercase mb-4 tracking-wider">
-      {children}
-    </h3>
-  );
 
   return (
     <div className="w-full flex flex-row min-h-[297mm] bg-white text-slate-900" style={{ width: '210mm' }}>

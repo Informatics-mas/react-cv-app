@@ -2,6 +2,9 @@ import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Lock, Mail, User, Loader2, FileText, ArrowLeft } from "lucide-react";
 import { FaGoogle, FaApple } from 'react-icons/fa';
+import { api } from "../../api/client";
+import { USER_ROLES } from "../../constants";
+import { useAuth } from "../../context/useAuth";
 
 export default function Signin() {
   const [name, setName] = useState("");
@@ -12,11 +15,13 @@ export default function Signin() {
   
   const navigate = useNavigate();
   const location = useLocation();
+  const { refresh } = useAuth(); // recharge le profil via AuthProvider
 
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) {
-      navigate("/Home");
+      const role = localStorage.getItem("userRole");
+      navigate(role && role.toLowerCase() === "admin" ? "/Admin" : "/Home");
     }
   }, [navigate]);
 
@@ -26,42 +31,34 @@ export default function Signin() {
     setError("");
 
     try {
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/auth/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, email, password }),
-      });
+      const data = await api.post("/auth/register", { name, email, password });
 
-      const data = await res.json();
-
-      if (res.ok) {
-        if (data.token) {
-          const storage = window.localStorage;
-          storage.setItem("token", data.token);
-          storage.setItem("userRole", data.user.role); 
+      if (data.token) {
+        const storage = window.localStorage;
+        storage.setItem("token", data.token);
+        storage.setItem("userRole", data.user.role); 
+        refresh(); // (AuthProvider) : le profil est rechargé pour tout l'app
         
-          const isAdmin = String(data.user?.role) === 'admin';
-          if (isAdmin) {
-            navigate("/Adminhome"); 
-            const origin = location.state?.from?.pathname || "/Home";
-            navigate(origin);
-          }
+        const isAdmin = String(data.user?.role) === USER_ROLES.ADMIN;
+        if (isAdmin) {
+          navigate("/Admin");
         } else {
-          navigate("/login", { state: { message: "Compte créé ! Veuillez vous connecter." } });
+          const origin = location.state?.from?.pathname || "/Home";
+          navigate(origin);
         }
       } else {
-        setError(data.message || "Erreur lors de l'inscription.");
+        navigate("/login", { state: { message: "Compte créé ! Veuillez vous connecter." } });
       }
     } catch (err) {
-      console.error("Erreur Inscription:", err);
-      setError("Le serveur est injoignable. Vérifiez votre connexion.");
+      // ApiError : message serveur traduit, jamais de texte technique
+      setError(err.message || "Le serveur est injoignable. Vérifiez votre connexion.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-[#131b2e] bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#1a2e5a] via-[#0B1A3B] to-black p-4">
+    <div className="min-h-full flex flex-col items-center justify-center bg-[#131b2e] bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#1a2e5a] via-[#0B1A3B] to-black p-4">
 
        <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium">
             <ArrowLeft size={16} />

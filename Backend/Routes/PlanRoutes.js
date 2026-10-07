@@ -19,8 +19,8 @@ router.get("/", async (req, res) => {
   try {
     const plans = await Plans.find().sort({ price: 1 }).limit(20);
     res.status(200).json(plans);
-  } catch (error) {
-    res.status(500).json({ message: "Erreur", error: error.message });
+  } catch {
+    res.status(500).json({ message: "Erreur lors de la récupération des plans" });
   }
 });
 
@@ -28,7 +28,7 @@ router.post("/", protect, adminOnly, async (req, res) => {
   try {
     const validation = planSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ message: "Données invalides", errors: validation.error.errors });
+      return res.status(400).json({ message: "Données invalides", errors: validation.error.issues.map(issue => issue.message) });
     }
     
     const newPlan = new Plans(validation.data); 
@@ -40,8 +40,8 @@ router.post("/", protect, adminOnly, async (req, res) => {
         duree: savedPlan.duree,
         maxDownloads: savedPlan.maxDownloads
     });
-  } catch (error) {
-    res.status(400).json({ message: "Échec création", error: error.message });
+  } catch {
+    res.status(400).json({ message: "Échec de la création du plan" });
   }
 });
 
@@ -49,14 +49,14 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
   try {
     const validation = planSchema.safeParse(req.body);
     if (!validation.success) {
-      return res.status(400).json({ message: "Données invalides", errors: validation.error.errors });
+      return res.status(400).json({ message: "Données invalides", errors: validation.error.issues.map(issue => issue.message) });
     }
 
     const updatedPlan = await Plans.findByIdAndUpdate(req.params.id, { $set: validation.data }, { new: true });
     if (!updatedPlan) return res.status(404).json({ message: "Plan introuvable." });
     res.status(200).json(updatedPlan);
-  } catch (error) {
-    res.status(400).json({ message: "Erreur mise à jour", error: error.message });
+  } catch {
+    res.status(400).json({ message: "Erreur lors de la mise à jour du plan" });
   }
 });
 
@@ -65,8 +65,8 @@ router.delete("/:id", protect, adminOnly, async (req, res) => {
     const deletedPlan = await Plans.findByIdAndDelete(req.params.id);
     if (!deletedPlan) return res.status(404).json({ message: "Plan introuvable." });
     res.status(200).json({ message: "Plan supprimé !" });
-  } catch (error) {
-    res.status(500).json({ message: "Erreur suppression", error: error.message });
+  } catch {
+    res.status(500).json({ message: "Erreur lors de la suppression du plan" });
   }
 });
 

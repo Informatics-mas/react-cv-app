@@ -1,10 +1,11 @@
 import mongoose from "mongoose";
+import { PLAN_NAMES } from "../constants.js";
 
 const PlansSchema = new mongoose.Schema({
   name: { 
     type: String,
     required: true,
-    enum: ['Free', 'Basic', 'Premium'], 
+    enum: Object.values(PLAN_NAMES), 
   },
   price: { 
     type: Number, 
@@ -32,6 +33,7 @@ const PlansSchema = new mongoose.Schema({
   }, 
   maxDownloads: {
     type: Number,
+    required: [true, "Le nombre de téléchargements est requis"],
     min: [2, "le nombre de telechargement doit être au moi 2 "]
   }
 }, { 

@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './utils/ProtectedRoute';
 import Home from "./components/Home";
 import Home2 from "./components/Home2";
@@ -21,7 +22,13 @@ import './styles/App.css';
 function App() {
   return (
     <BrowserRouter>
+      <AuthProvider>
+      {/* Architecture de scroll à viewport fixe (§5) :
+          h-dvh = hauteur dynamique (barre d'URL mobile incluse),
+          Navbar = slot fixe, <main> = SEULE zone de scroll des pages. */}
+      <div className="h-dvh flex flex-col overflow-hidden">
       <Navbar />
+      <main className="flex-1 min-h-0 overflow-y-auto">
       <Routes>
         {/* ROUTES PUBLIQUES */}
         <Route path="/" element={<Home />} />
@@ -45,7 +52,9 @@ function App() {
         {/* ROUTES ADMIN UNIQUEMENT */}
         <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
           <Route path="/Admin/*" element={<Adminhome />} />
-          <Route path="/AdminPlans" element={<AdminPlans />} />
+          {/* Redirection de compatibilité : l'ancienne route /AdminPlans est
+              désormais servie par /Admin/plans (routeur imbriqué d'Adminhome). */}
+          <Route path="/AdminPlans" element={<Navigate to="/Admin/plans" replace />} />
         </Route>
 
         {/* --- SÉCURITÉ : REDIRECTION 404 --- */}
@@ -53,6 +62,9 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
       <Footer />
+      </main>
+      </div>
+      </AuthProvider>
     </BrowserRouter>
   );
 }

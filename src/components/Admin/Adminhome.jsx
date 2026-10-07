@@ -12,11 +12,14 @@ import {
   User, 
   Mail,
   ArrowRight,
-  LayoutDashboard
+  LayoutDashboard,
+  AlertCircle
 } from 'lucide-react';
 import SubscriptionManager from './subscriptions';
 import UserManager from './usermanager';
 import AdminPlans from './AdminPlans';
+import { API_BASE_URL } from '../../api/client';
+import { clearAuthStorage } from '../../utils/authStorage';
 
 function Adminhome() {
   const navigate = useNavigate();
@@ -24,12 +27,13 @@ function Adminhome() {
 
   const [stats, setStats] = useState({ users: 0, subs: 0, revenue: 0 });
   const [loading, setLoading] = useState(true);
+  const [statsError, setStatsError] = useState(null);
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
         const token = localStorage.getItem("token");
-        const res = await fetch(`${import.meta.env.VITE_API_URL}/stats/dashboard-stats`, {
+        const res = await fetch(`${API_BASE_URL}/stats/dashboard-stats`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -42,8 +46,10 @@ function Adminhome() {
 
         const data = await res.json();
         setStats(data);
+        setStatsError(null);
       } catch (err) {
         console.error("Erreur stats:", err);
+        setStatsError("Impossible de charger les statistiques du tableau de bord. Réessayez plus tard.");
       } finally {
         setLoading(false);
       }
@@ -52,9 +58,9 @@ function Adminhome() {
   }, []);
 
   const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("userRole"); 
-    
+    // Déconnexion propre : uniquement les clés d'authentification.
+    clearAuthStorage();
+
     navigate("/login", { replace: true });
     
     window.location.reload();
@@ -66,7 +72,7 @@ function Adminhome() {
     const fetchDashboardData = async () => {
       try {
         const token = localStorage.getItem("token");
-       const res = await fetch(`${import.meta.env.VITE_API_URL}/users`, {
+       const res = await fetch(`${API_BASE_URL}/users`, {
           headers: { Authorization: `Bearer ${token}` }
         });
 
@@ -77,16 +83,18 @@ function Adminhome() {
          return;
        }
       
-        const data = await res.json();
-        if (res.ok && Array.isArray(data)) {
-          setRecentUsers(data.slice(0, 4));
+        const body = await res.json();
+        if (res.ok && Array.isArray(body.data)) {
+          setRecentUsers(body.data.slice(0, 4));
         } else {
-          console.error("Le serveur n'a pas renvoyé un tableau :", data);
+          console.error("Le serveur n'a pas renvoyé un tableau :", body);
           setRecentUsers([]);
+          setStatsError("Impossible de charger les derniers utilisateurs.");
         }
       } catch (err) {
         console.error("Erreur chargement utilisateurs récents:", err);
         setRecentUsers([]);
+        setStatsError("Impossible de charger les derniers utilisateurs.");
       }
     };
     fetchDashboardData();
@@ -94,9 +102,12 @@ function Adminhome() {
   
 
   return (
-    <div className="min-h-screen bg-[#131b2e] text-white font-sans flex">
+    <div className="min-h-full bg-[#131b2e] text-white font-sans flex">
       {/* --- SIDEBAR NAV --- */}
-      <nav className="w-full md:w-72 text-slate-300 border-r border-slate-800/60 bg-[#0b1120] flex flex-col h-screen sticky top-0">
+      {/* Sidebar : sticky seulement en desktop (md+) et SANS h-screen —
+          100vh sous la navbar forçait ~76px de scroll supplémentaire (double scroll).
+          En mobile : bloc statique empilé, un seul scroll naturel. */}
+      <nav className="w-full md:w-72 text-slate-300 border-r border-slate-800/60 bg-[#0b1120] flex flex-col md:sticky md:top-0">
         
         {/* LOGO SECTION */}
         <div className="p-6">
@@ -133,10 +144,10 @@ function Adminhome() {
             active={location.pathname === "/admin/subscriptions"} 
           />
           <NavItem 
-            to="/admin/AdminPlans" 
+            to="/admin/plans" 
             icon={<LayoutTemplate size={18} />} 
             label="Plans & Tarifs" 
-            active={location.pathname === "/admin/AdminPlans"} 
+            active={location.pathname === "/admin/plans"} 
           />
 
           <p className="px-4 text-[10px] font-bold text-slate-500 uppercase tracking-[2px] mb-4 mt-8">Communication</p>
@@ -169,13 +180,16 @@ function Adminhome() {
           {/* Dashboard Stats */}
           <Route path="/" element={
             <>
+              {statsError && (
+                <div className="mb-6 flex items-center gap-2 text-sm text-red-400 bg-red-500/10 border border-red-500/20 rounded-xl px-4 py-3">
+                  <AlertCircle size={16} className="flex-shrink-0" />
+                  {statsError}
+                </div>
+              )}
               <div className="flex justify-between items-center mb-10">
                 <div>
                     <h2 className="text-3xl font-bold">Tableau de bord</h2>
                     <p className="text-slate-400 text-sm">Bienvenue dans votre espace de gestion.</p>
-                </div>
-                <div className="text-xs font-mono text-slate-500 bg-slate-800/50 px-3 py-1 rounded-full border border-slate-700">
-                    SESSIONS_LIVE: 42
                 </div>
               </div>
 
@@ -197,7 +211,7 @@ function Adminhome() {
                   title="Revenus Mensuels" 
                   value={loading ? "..." : `${(stats?.revenue || 0).toLocaleString()} XOF`} 
                   icon={<Heart size={20} />} 
-                  trend="+8% cette semaine" 
+                  trend="Aucun paiement enregistré" 
                 />
               </div>
 
@@ -236,11 +250,11 @@ function Adminhome() {
             </>
           } />
 
-          {/* Sous-pages */}
-          <Route path="/users" element={<UserManager />} />
-          <Route path="/subscriptions" element={<SubscriptionManager />} />
-          <Route path="/AdminPlans" element={<AdminPlans/>} />
-          <Route path="/mailer" element={<Placeholder title="Email Marketing" />} />
+          {/* Sous-pages (chemins relatifs au routeur parent /Admin/*) */}
+          <Route path="users" element={<UserManager />} />
+          <Route path="subscriptions" element={<SubscriptionManager />} />
+          <Route path="plans" element={<AdminPlans/>} />
+          <Route path="mailer" element={<Placeholder title="Email Marketing" />} />
         </Routes>
       </main>
     </div>

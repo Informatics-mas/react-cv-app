@@ -6,9 +6,11 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import cors from "cors";
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { Server } from "socket.io";
-import http from "http";
 import cron from 'node-cron';
+import helmet from "helmet";
+import rateLimit from "express-rate-limit";
+// Import explicite : la config ESLint utilise globals.browser, "process" n'est donc pas déclaré
+import process from "node:process";
 
 // --- IMPORTS DES MODÈLES ---
 import User from './Models/user.js'; 
@@ -16,6 +18,8 @@ import Subscription from './Models/subscriptions.js';
 
 // --- IMPORTS DES SERVICES ---
 import { sendExpirationWarningEmail } from './utils/emailService.js';
+import { getEffectiveEntitlements } from './utils/entitlements.js';
+import { SUBSCRIPTION_STATUS, PLAN_NAMES } from './constants.js';
 
 // --- CONFIGURATION DES CHEMINS ---
 const __filename = fileURLToPath(import.meta.url);
@@ -26,8 +30,10 @@ import authRoutes from "./Routes/AuthRoute.js";
 import userRoutes from "./Routes/userRoutes.js";
 import subscriptionRoutes from "./Routes/subscriptionRoutes.js";
 import { protect } from "./Middleware/AuthMiddleware.js";
+import { responseFormat } from "./Middleware/responseFormat.js";
 import statsRoutes from "./Routes/Stats.js";
 import planRoutes from "./Routes/PlanRoutes.js";
+import downloadRoutes from "./Routes/downloadRoutes.js";
 
 // 1. Initialisation de Express
 const app = express();
@@ -35,18 +41,21 @@ const app = express();
 // 2. Chargement du .env
 dotenv.config({ path: path.join(__dirname, '.env') });
 
-// 3. Création du serveur HTTP
-const server = http.createServer(app);
+// --- SÉCURITÉ : JWT_SECRET OBLIGATOIRE ---
+// Le serveur refuse de démarrer sans secret : jamais de fallback faible.
+if (!process.env.JWT_SECRET) {
+  console.error("❌ JWT_SECRET manquant dans Backend/.env. Le serveur refuse de démarrer. (openssl rand -hex 64)");
+  process.exit(1);
+}
 
-// 4. Initialisation de Socket.io
-const io = new Server(server, {
-  cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:5173",
-    methods: ["GET", "POST"]
-  }
-});
-
-app.set("socketio", io);
+// --- TRUST PROXY ---
+// Désactivé par défaut : si le serveur est exposé directement, un en-tête
+// X-Forwarded-For forgé ne doit pas fausser l'IP client (rate-limit).
+// En production derrière un reverse proxy, définir TRUST_PROXY=1 (nb de sauts).
+const trustProxyHops = parseInt(process.env.TRUST_PROXY ?? "", 10);
+if (Number.isInteger(trustProxyHops) && trustProxyHops > 0) {
+  app.set("trust proxy", trustProxyHops);
+}
 
 // --- CONFIGURATION DE MULTER (STOCKAGE EN MÉMOIRE COHÉRENT) ---
 const storage = multer.memoryStorage();
@@ -63,12 +72,23 @@ const upload = multer({
 });
 
 // --- MIDDLEWARES GLOBAUX ---
+// Sécurité : en-têtes HTTP (Helmet).
+// - crossOriginResourcePolicy "cross-origin" : le front (Vercel) appelle cette API en CORS,
+//   on ne bloque donc pas les réponses cross-origin.
+// - crossOriginEmbedderPolicy désactivé : inutile pour une API JSON et risque de casser
+//   le chargement de ressources cross-origin côté front.
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+  crossOriginEmbedderPolicy: false
+}));
 app.use(cors({
   origin: process.env.FRONTEND_URL || "http://localhost:5173",
   credentials: true
 }));
 app.use(express.json({ limit: "2mb" })); 
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
+// Convention de réponse : { success, data?, message?, code? } (voir Middleware/responseFormat.js)
+app.use(responseFormat);
 
 // --- CONFIGURATION GEMINI ---
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
@@ -96,14 +116,55 @@ app.use("/api/users", userRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
 app.use("/api/stats", statsRoutes);
 app.use("/api/plans", planRoutes);
+app.use("/api/downloads", downloadRoutes);
+
+// --- RATE-LIMIT SPÉCIFIQUE PARSE-CV : 10 analyses / heure / utilisateur ---
+// Placé APRÈS "protect" : la clé est l'ID utilisateur issu du JWT vérifié,
+// jamais une valeur envoyée par le frontend.
+const parseCvLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // fenêtre de 1 heure
+  limit: 10,                // 10 analyses par heure et par utilisateur
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => (req.user && req.user.id ? String(req.user.id) : "anonymous"),
+  message: { success: false, message: "Trop d'analyses de CV effectuées. Veuillez réessayer dans une heure.", code: "RATE_LIMITED" }
+});
+
+// --- GATING PREMIUM SERVEUR (IA) ---
+// Le frontend masque déjà la fonctionnalité, mais le backend reste l'autorité :
+// un utilisateur Free/Basic (curl, Postman, script) reçoit 403 PREMIUM_REQUIRED.
+// Source de vérité : getEffectiveEntitlements (même calcul que /auth/me et le quota).
+const premiumOnly = async (req, res, next) => {
+  try {
+    const entitlements = await getEffectiveEntitlements(req.user.id);
+    if (!entitlements) {
+      return res.status(401).json({ message: "Utilisateur introuvable." });
+    }
+
+    if (entitlements.planName !== PLAN_NAMES.PREMIUM) {
+      return res.status(403).json({
+        success: false,
+        message: "Cette fonctionnalité est réservée au plan Premium.",
+        code: "PREMIUM_REQUIRED"
+      });
+    }
+
+    next();
+  } catch (error) {
+    console.error("Erreur gating premium IA:", error);
+    res.status(500).json({ message: "Erreur serveur lors du contrôle des droits." });
+  }
+};
 
 // --- ROUTE PARSE-CV (REMISE AVEC TON PROMPT COMPLET) ---
-app.post("/api/parse-cv", upload.single("cv_file"), async (req, res) => {
+// Protégée : JWT obligatoire (401 sinon), plan Premium requis (403 sinon),
+// puis quota anti-abus avant toute consommation Gemini.
+app.post("/api/parse-cv", protect, premiumOnly, parseCvLimiter, upload.single("cv_file"), async (req, res) => {
   try {
     console.log("=== DEBUT DU TRAITEMENT DU CV ===");
     
     if (!req.file) {
-      return res.status(400).json({ error: "Aucun fichier n'a été téléchargé." });
+      return res.status(400).json({ message: "Aucun fichier n'a été téléchargé." });
     }
 
     console.log("📄 Fichier reçu :", req.file.originalname);
@@ -176,27 +237,18 @@ app.post("/api/parse-cv", upload.single("cv_file"), async (req, res) => {
     console.log("✅ Extraction directe réussie avec succès !");
     console.log("=== FIN DU TRAITEMENT ===\n");
     
-    return res.json(cleanJson);
+    return res.json({ success: true, data: cleanJson });
 
   } catch (error) {
     console.error("❌ Erreur critique lors du traitement Gemini :", error);
     
     if (error.status === 503) {
       return res.status(503).json({ 
-        error: "Les serveurs de l'IA sont temporairement surchargés. Veuillez réessayer dans quelques instants." 
+        message: "Les serveurs de l'IA sont temporairement surchargés. Veuillez réessayer dans quelques instants." 
       });
     }
     
-    return res.status(500).json({ error: "Une erreur est survenue lors de l'analyse." });
-  }
-});
-
-// Route administrative pour reset
-app.post("/api/admin/reset-edition", protect, async (req, res) => {
-  try {
-    res.json({ success: true, message: "L'édition a été réinitialisée ! 🚀" });
-  } catch (error) {
-    res.status(500).json({ success: false, message: "Erreur lors du reset." });
+    return res.status(500).json({ message: "Une erreur est survenue lors de l'analyse." });
   }
 });
 
@@ -225,7 +277,7 @@ cron.schedule('0 1 * * *', async () => {
         $gte: targetDateStart,
         $lte: targetDateEnd
       },
-      status: 'active'
+      status: SUBSCRIPTION_STATUS.ACTIVE
     }).populate("userId").populate("planId");
 
     console.log(`✉️ ${subscriptionsToWarn.length} abonnement(s) expire(nt) dans 7 jours.`);
@@ -233,7 +285,7 @@ cron.schedule('0 1 * * *', async () => {
     for (const sub of subscriptionsToWarn) {
       if (!sub.userId || !sub.planId) continue;
 
-      if (sub.planId.name.toLowerCase() === 'gratuit' || sub.planId.name.toLowerCase() === 'free') {
+      if (sub.planId.name === PLAN_NAMES.FREE) {
         continue;
       }
 
@@ -253,6 +305,6 @@ app.use((req, res) => {
 
 // --- DEMARRAGE DU SERVEUR ---
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
+app.listen(PORT, () => {
   console.log(`Le serveur tourne sur le port ${PORT} 🚀`);
 });

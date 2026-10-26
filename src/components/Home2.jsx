@@ -1,7 +1,9 @@
+"use client";
+
 import React, { useEffect, useCallback } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/useAuth';
-import { clearAuthStorage } from '../utils/authStorage';
 import { 
   FileText, 
   Sparkles, 
@@ -15,10 +17,10 @@ import {
 } from 'lucide-react';
 
 function Home2() {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   // Profil partagé via AuthProvider : un SEUL /auth/me pour toute l'application
-  const { user, loading: authLoading, isAuthenticated, reason } = useAuth();
+  const { user, loading: authLoading, isAuthenticated, reason, logout } = useAuth();
 
   // Valeurs affichées = calculées par le serveur (état effectif de l'abonnement)
   const userName = user?.name || '';
@@ -32,24 +34,27 @@ function Home2() {
 
   // --- RECUPERATION DU STATUT EN TEMPS REEL ---
   // useCallback : identité stable pour ne pas re-déclencher l'effet à chaque rendu
-  const handleLogout = useCallback(() => {
-    // Déconnexion propre : uniquement les clés d'authentification.
-    // Les données locales du CV (cv_data_pro) sont préservées.
-    clearAuthStorage();
-    window.location.href = "/";
-  }, []);
+  const handleLogout = useCallback(async () => {
+    // Déconnexion COMPLÈTE : révocation serveur (cookie + jti) confirmée par
+    // logout() avant de vider l'état ; échec = aucune prétention. Les données
+    // locales du CV (cv_data_pro) sont préservées.
+    const ok = await logout();
+    if (ok) {
+      window.location.href = "/";
+    }
+  }, [logout]);
 
   useEffect(() => {
     // Espace réservé aux utilisateurs connectés (ProtectedRoute gère déjà le cas nominal)
     if (!isAuthenticated) {
-      navigate("/");
+      router.push("/");
       return;
     }
     // Token présent mais refusé par l'API (401/403) : session à nettoyer proprement
     if (!authLoading && !user && reason === "unauthorized") {
       handleLogout();
     }
-  }, [isAuthenticated, authLoading, user, reason, navigate, handleLogout]);
+  }, [isAuthenticated, authLoading, user, reason, router, handleLogout]);
 
   if (loading) {
     return (
@@ -141,7 +146,7 @@ function Home2() {
           
           <div className="flex flex-wrap gap-3 w-full md:w-auto">
             <Link 
-              to="/Create"
+              href="/create"
               className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white font-bold text-sm px-5 py-3 rounded-xl transition-all shadow-lg shadow-blue-600/10 w-full sm:w-auto"
             >
               <PlusCircle size={18} />
@@ -167,7 +172,7 @@ function Home2() {
               </div>
             </div>
             <Link 
-              to="/Plans" 
+              href="/plans" 
               className="text-xs font-bold text-blue-400 group-hover:text-blue-300 flex items-center gap-1 mt-6 transition-colors"
             >
               Gérer ou modifier mon offre <ArrowRight size={12} />
@@ -216,7 +221,7 @@ function Home2() {
               </ul>
             </div>
             <Link 
-              to="/Create" 
+              href="/create" 
               className="text-xs font-bold text-purple-400 group-hover:text-purple-300 flex items-center gap-1 mt-4 transition-colors"
             >
               Tester l'importation IA <ArrowRight size={12} />

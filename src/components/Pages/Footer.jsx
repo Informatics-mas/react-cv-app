@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { FileText, Heart, Mail } from 'lucide-react';
 
 function Footer() {
@@ -23,16 +23,16 @@ function Footer() {
           <div>
             <h4 className="font-bold mb-5 text-xs uppercase tracking-widest text-slate-300">Produit</h4>
             <ul className="space-y-3 text-slate-400 text-xs">
-              <li><Link to="/Create" className="hover:text-white transition-colors">Créateur de CV</Link></li>
-              <li><Link to="/Models" className="hover:text-white transition-colors">Modèles de CV</Link></li>
-              <li><Link to="/Plans" className="hover:text-white transition-colors">Tarifs</Link></li>
+              <li><Link href="/create" className="hover:text-white transition-colors">Créateur de CV</Link></li>
+              <li><Link href="/models" className="hover:text-white transition-colors">Modèles de CV</Link></li>
+              <li><Link href="/plan" className="hover:text-white transition-colors">Tarifs</Link></li>
             </ul>
           </div>
 
           <div>
             <h4 className="font-bold mb-5 text-xs uppercase tracking-widest text-slate-300">Aide</h4>
             <ul className="space-y-3 text-slate-400 text-xs">
-              <li><Link to="/FAQ" className="hover:text-white transition-colors">FAQ</Link></li>
+              <li><Link href="/faq" className="hover:text-white transition-colors">FAQ</Link></li>
               <li><a href="mailto:ogouogoudavid@gmail.com" className="hover:text-white transition-colors">Support technique</a></li>
             </ul>
           </div>
@@ -40,9 +40,9 @@ function Footer() {
           <div>
             <h4 className="font-bold mb-5 text-xs uppercase tracking-widest text-slate-300">A propos de nous</h4>
             <ul className="space-y-3 text-slate-400 text-xs">
-              <li><Link to="Privacy" className="hover:text-white transition-colors">Condition d'utilisation</Link></li>
-              <li><Link to="Terms" className="hover:text-white transition-colors">Politique de confidentialité</Link></li>
-              <li><Link to="About" className="hover:text-white transition-colors">A propos de nous</Link></li>
+              <li><Link href="/terms" className="hover:text-white transition-colors">Conditions d'utilisation</Link></li>
+              <li><Link href="/privacy" className="hover:text-white transition-colors">Politique de confidentialité</Link></li>
+              <li><Link href="/about" className="hover:text-white transition-colors">A propos de nous</Link></li>
             </ul>
           </div>
 

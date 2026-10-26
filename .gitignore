@@ -26,12 +26,17 @@ dist-ssr
 node_modules/
 dist/
 build/
+.next/
 .env
 .env.*
 !.env.example
+!Backend/.env.payment-mock.example
 coverage/
 *.log
 .DS_Store
 .vscode/
 .idea/
 /generated/prisma
+
+# Données de migration (PII, hashes, paiements) — jamais dans Git
+scripts/migrate/data/

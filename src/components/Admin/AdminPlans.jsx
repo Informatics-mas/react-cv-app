@@ -1,3 +1,5 @@
+"use client";
+
 import { useState, useEffect, useCallback } from "react";
 import { 
   LayoutTemplate, 
@@ -39,6 +41,7 @@ export default function AdminPlans() {
     try {
       setLoading(true);
       const res = await fetch(API_URL, {
+        credentials: "include",
         headers: { Authorization: `Bearer ${token}` }
       });
 
@@ -83,6 +86,7 @@ export default function AdminPlans() {
     try {
       const res = await fetch(url, {
         method: method,
+        credentials: "include",
         headers: { 
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}` 
@@ -91,7 +95,13 @@ export default function AdminPlans() {
       });
 
       const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Une erreur est survenue");
+      if (!res.ok) {
+        // Rendre visible le détail de validation (ex. longueur minimale) sans masquer le message serveur.
+        const detail = Array.isArray(data.errors) && data.errors.length
+          ? ` (${data.errors.map((e) => (typeof e === "string" ? e : e.message || JSON.stringify(e))).join(" ; ")})`
+          : "";
+        throw new Error((data.message || "Une erreur est survenue") + detail);
+      }
 
       resetForm();
       fetchPlans();
@@ -106,6 +116,7 @@ export default function AdminPlans() {
     try {
       const res = await fetch(`${API_URL}/${id}`, {
         method: "DELETE",
+        credentials: "include",
         headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) fetchPlans();

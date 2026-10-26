@@ -1,6 +1,6 @@
 import express from "express";
+import { db } from "../db/index.js";
 import { protect } from "../Middleware/AuthMiddleware.js";
-import User from "../Models/user.js";
 import { getEffectiveEntitlements } from "../utils/entitlements.js";
 
 const router = express.Router();
@@ -11,8 +11,9 @@ const router = express.Router();
  * La génération du PDF reste côté navigateur (react-to-print) ; ce routeur
  * est la SOURCE DE VÉRITÉ du quota : le client ne peut pas forcer le compteur.
  *
- * Incrément atomique MongoDB ($inc) gardé par $lt : deux requêtes simultanées
- * ne peuvent pas dépasser maxDownloads (pas de read-then-write).
+ * Incrémentation ATOMIQUE conditionnée (mongo: $inc+$lt / postgres: UPDATE
+ * WHERE downloads_used < limit) : deux requêtes simultanées ne peuvent pas
+ * dépasser maxDownloads (pas de read-then-write).
  */
 router.post("/authorize", protect, async (req, res) => {
   try {
@@ -23,11 +24,7 @@ router.post("/authorize", protect, async (req, res) => {
 
     const limit = entitlements.maxDownloads;
 
-    const updatedUser = await User.findOneAndUpdate(
-      { _id: req.user.id, downloadsUsed: { $lt: limit } },
-      { $inc: { downloadsUsed: 1 } },
-      { new: true }
-    );
+    const updatedUser = await db.users.incrementDownloadIfBelow(req.user.id, limit);
 
     if (!updatedUser) {
       return res.status(403).json({

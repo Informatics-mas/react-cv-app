@@ -1,5 +1,7 @@
+"use client";
+
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 import { 
   HelpCircle, 
   ChevronDown, 
@@ -199,8 +201,8 @@ function FAQ() {
         <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row justify-between items-center gap-4 text-center sm:text-left">
           <p className="text-slate-500 text-xs">© 2026 CV.Craft. Tous droits réservés.</p>
           <div className="flex items-center gap-4 text-xs font-bold uppercase tracking-widest">
-            <Link to="/models" className="text-slate-500 hover:text-white transition-colors">Modèles</Link>
-            <Link to="/plans" className="text-slate-500 hover:text-white transition-colors">Tarifs</Link>
+            <Link href="/models" className="text-slate-500 hover:text-white transition-colors">Modèles</Link>
+            <Link href="/plan" className="text-slate-500 hover:text-white transition-colors">Tarifs</Link>
           </div>
         </div>
       </footer>

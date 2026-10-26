@@ -1,0 +1,11 @@
+-- ============================================================
+-- Backend/db/schema/003_user_sessions_rollback.sql
+-- Rollback de 003_user_sessions.sql (Lot 2G.7) — À EXÉCUTER UNIQUEMENT SUR
+-- DÉCISION TRACÉE. RESTAURE L'ÉTAT SANS RÉVOCATION DE SESSIONS : les JWT
+-- émis resteraient valides jusqu'à expiration (défaut P2 du Lot 2G.6) —
+-- exécuter en même temps un retour arrière du code applicatif (AuthRoute/
+-- AuthMiddleware) qui exige les sessions, sinon toute authentification est
+-- refusée (fail-closed). Aucune donnée métier ni financière n'est concernée.
+-- ============================================================
+DROP TABLE IF EXISTS user_sessions;
+-- Fin du rollback.

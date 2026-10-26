@@ -1,8 +1,10 @@
+"use client";
+
 import React, { useState, useEffect, useRef } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { isFreePlan } from '../../constants';
 import { useAuth } from '../../context/useAuth';
-import { clearAuthStorage } from '../../utils/authStorage';
 import { 
   FileText, 
   ArrowRight,
@@ -15,23 +17,29 @@ import {
 } from 'lucide-react';
 
 function Navbar() {
-  const location = useLocation();
-  
-  // Profil partagé : un seul /auth/me pour tout l'app (AuthProvider)
-  const { user, isAuthenticated } = useAuth();
+  const pathname = usePathname();
 
-  // Valeurs affichées = réponse serveur ; repli localStorage uniquement avant le premier rendu
+  // Profil partagé : un seul /auth/me pour tout l'app (AuthProvider)
+  const { user, isAuthenticated, logout } = useAuth();
+
+  // Valeurs affichées = réponse serveur ; repli localStorage uniquement côté
+  // navigateur (les lectures sont neutralisées pendant le rendu serveur SSR).
+  const ls = (key, fallback) =>
+    typeof window !== 'undefined' ? (localStorage.getItem(key) ?? fallback) : fallback;
   const userName = user?.name || '';
-  const userPlan = user?.user_plan || localStorage.getItem('user_plan') || 'Free';
-  const allowedLimit = user?.user_max_downloads ?? parseInt(localStorage.getItem('user_max_downloads') || '5', 10);
-  const downloadCount = user?.subscription?.downloadsUsed ?? parseInt(localStorage.getItem('download_count') || '0', 10);
+  const userPlan = user?.user_plan || ls('user_plan', 'Free');
+  const allowedLimit = user?.user_max_downloads ?? parseInt(ls('user_max_downloads', '5'), 10);
+  const downloadCount = user?.subscription?.downloadsUsed ?? parseInt(ls('download_count', '0'), 10);
 
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef(null);
 
   const getDashboardPath = () => {
-    if (localStorage.getItem('token')) return '/Home';
-    if (localStorage.getItem('adminToken')) return '/Admin';
+    if (typeof window === 'undefined') return '/';
+    // Indicateur UI (cache userRole) — l'autorité reste le middleware/backend.
+    const role = (localStorage.getItem('userRole') || '').toLowerCase();
+    if (role === 'admin') return '/admin';
+    if (role) return '/home';
     return '/';
   };
 
@@ -45,11 +53,14 @@ function Navbar() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleLogout = () => {
-    // Déconnexion propre : uniquement les clés d'authentification.
-    // Le CV local (cv_data_pro) est préservé pour la prochaine session.
-    clearAuthStorage();
-    window.location.href = "/"; 
+  const handleLogout = async () => {
+    // Déconnexion COMPLÈTE : révocation serveur (cookie + jti) confirmée par
+    // logout() avant de vider l'état ; échec = aucune prétention. Le CV local
+    // (cv_data_pro) est préservé pour la prochaine session.
+    const ok = await logout();
+    if (ok) {
+      window.location.href = "/"; 
+    }
   };
 
   return (
@@ -69,15 +80,15 @@ function Navbar() {
           
           {!isAuthenticated ? (
             <>
-              {/* Navigation interne via React Router : pas de rechargement complet de la page */}
+              {/* Navigation interne via Next.js : pas de rechargement complet de la page */}
               <Link 
-                to="/Models" 
+                href="/models" 
                 className="bg-slate-800 hover:bg-slate-700 text-white px-3 py-2 rounded-full font-bold text-xs sm:text-sm shadow-md transition-all flex items-center gap-1.5"
               >
                 Modèles <ArrowRight size={14} />
               </Link>
               <Link 
-                to="/login" 
+                href="/login" 
                 className="bg-blue-600 hover:bg-blue-500 text-white px-5 py-2 rounded-full font-bold text-xs sm:text-sm transition-all shadow-lg shadow-blue-600/20"
               >
                 Login
@@ -85,9 +96,9 @@ function Navbar() {
             </>
           ) : (
             <>
-              {location.pathname !== '/Models' && (
+              {pathname !== '/models' && (
                 <Link 
-                  to="/Models" 
+                  href="/models" 
                   className="hidden sm:flex items-center gap-1.5 bg-slate-900 border border-slate-800 hover:border-slate-700 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-300 hover:text-white transition-all"
                 >
                   <LayoutTemplate size={14} className="text-blue-500" />
@@ -135,7 +146,7 @@ function Navbar() {
 
                     <div className="py-1.5">
                       <Link 
-                        to={getDashboardPath()} 
+                        href={getDashboardPath()} 
                         onClick={() => setDropdownOpen(false)}
                         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
                       >
@@ -144,7 +155,7 @@ function Navbar() {
                       </Link>
                       
                       <Link 
-                        to="/Plans" 
+                        href="/plans" 
                         onClick={() => setDropdownOpen(false)}
                         className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-300 hover:bg-slate-800/60 hover:text-white transition-colors"
                       >

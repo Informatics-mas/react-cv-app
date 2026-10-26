@@ -1,10 +1,30 @@
+"use client";
+
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Lock, Mail, User, Loader2, FileText, ArrowLeft } from "lucide-react";
 import { FaGoogle, FaApple } from 'react-icons/fa';
 import { api } from "../../api/client";
 import { USER_ROLES } from "../../constants";
 import { useAuth } from "../../context/useAuth";
+
+/**
+ * Destination interne sûre après inscription (?from= transmis par les layouts).
+ * - absente ou invalide (URL externe, //, protocole…) → "/Home" (repli d'origine) ;
+ * - jamais de redirection vers une URL fournie par l'utilisateur ;
+ * - pas de boucle : /login et /sign-in sont écartés.
+ */
+function safeInternalFrom() {
+  if (typeof window === "undefined") return "/home";
+  const raw = new URLSearchParams(window.location.search).get("from");
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) {
+    return "/home";
+  }
+  const path = raw.split("?")[0].split("#")[0];
+  if (path === "/login" || path === "/sign-in") return "/home";
+  return raw;
+}
 
 export default function Signin() {
   const [name, setName] = useState("");
@@ -13,17 +33,15 @@ export default function Signin() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { refresh } = useAuth(); // recharge le profil via AuthProvider
+  const router = useRouter();
+  const { refresh, user: authUser, loading: authLoading } = useAuth(); // recharge le profil via AuthProvider
 
+  // Redirection si une session est DÉJÀ active (cookie httpOnly validé par
+  // /auth/me) — jamais basée sur un ancien token localStorage.
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) {
-      const role = localStorage.getItem("userRole");
-      navigate(role && role.toLowerCase() === "admin" ? "/Admin" : "/Home");
-    }
-  }, [navigate]);
+    if (authLoading || !authUser) return;
+    router.push(String(authUser.role).toLowerCase() === "admin" ? "/admin" : "/home");
+  }, [authLoading, authUser, router]);
 
   const handleRegister = async (e) => {
     e.preventDefault();
@@ -33,21 +51,23 @@ export default function Signin() {
     try {
       const data = await api.post("/auth/register", { name, email, password });
 
-      if (data.token) {
+      if (data.user) {
         const storage = window.localStorage;
-        storage.setItem("token", data.token);
-        storage.setItem("userRole", data.user.role); 
+        // JWT = cookie httpOnly (contrat backend Phase 3b) — jamais stocké côté client.
+        storage.setItem("userRole", data.user.role);
         refresh(); // (AuthProvider) : le profil est rechargé pour tout l'app
         
         const isAdmin = String(data.user?.role) === USER_ROLES.ADMIN;
         if (isAdmin) {
-          navigate("/Admin");
+          router.push("/admin");
         } else {
-          const origin = location.state?.from?.pathname || "/Home";
-          navigate(origin);
+          const origin = safeInternalFrom();
+          router.push(origin);
         }
       } else {
-        navigate("/login", { state: { message: "Compte créé ! Veuillez vous connecter." } });
+        // L'état `message` d'origine (React Router) n'était jamais lu par Login :
+        // comportement préservé (aucun affichage), simple redirection vers /login.
+        router.push("/login");
       }
     } catch (err) {
       // ApiError : message serveur traduit, jamais de texte technique
@@ -60,7 +80,7 @@ export default function Signin() {
   return (
     <div className="min-h-full flex flex-col items-center justify-center bg-[#131b2e] bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#1a2e5a] via-[#0B1A3B] to-black p-4">
 
-       <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium">
+       <Link href="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium">
             <ArrowLeft size={16} />
             Retour à l'accueil
           </Link>
@@ -158,7 +178,7 @@ export default function Signin() {
             </div>*/}
 
             <p className="text-slate-500 text-xs mt-6">
-              Déjà un compte ? <Link to="/login" className="text-blue-500 font-bold hover:underline">Se connecter</Link>
+              Déjà un compte ? <Link href="/login" className="text-blue-500 font-bold hover:underline">Se connecter</Link>
             </p>
           </div>
         </div>

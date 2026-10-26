@@ -1,5 +1,8 @@
+"use client";
+
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
   FileText, 
   Sparkles, 
@@ -20,10 +23,11 @@ import Swal from 'sweetalert2';
 import { planLevel } from '../constants';
 
 function Models() {
-  const navigate = useNavigate();
+  const router = useRouter();
   
-  // Récupération du plan actuel de l'utilisateur
+  // Récupération du plan actuel de l'utilisateur (garde SSR : accès navigateur)
   const [userPlan] = useState(() => {
+    if (typeof window === 'undefined') return 'Free';
     return localStorage.getItem('user_plan') || 'Free'; // 'Free', 'Basic', ou 'Premium'
   });
 
@@ -48,8 +52,11 @@ function Models() {
   ];
 
   const getBackPath = () => {
-    if (localStorage.getItem('token')) return '/Home';
-    if (localStorage.getItem('adminToken')) return '/Admin';
+    if (typeof window === 'undefined') return '/';
+    // Indicateur UI (cache userRole) — l'autorité reste le middleware/backend.
+    const role = (localStorage.getItem('userRole') || '').toLowerCase();
+    if (role === 'admin') return '/admin';
+    if (role) return '/home';
     return '/';
   };
 
@@ -60,7 +67,9 @@ function Models() {
 
     if (userLevel >= requiredLevel) {
       // L'utilisateur a le niveau requis
-      navigate('/create', { state: { selectedTemplate: model.id } });
+      // Passage du modèle à l'éditeur via le paramètre d'URL (?template=...),
+      // canal de lecture prévu par app/create/page.jsx (useSearchParams).
+      router.push(`/create?template=${encodeURIComponent(model.id)}`);
     } else {
       // Niveau insuffisant
       Swal.fire({
@@ -76,7 +85,7 @@ function Models() {
         color: '#fff'
       }).then((result) => {
         if (result.isConfirmed) {
-          navigate('/plans');
+          router.push('/plans');
         }
       });
     }
@@ -86,7 +95,7 @@ function Models() {
     <div className="min-h-full bg-[#0f172a] text-white font-sans flex flex-col antialiased">
       {/* Barre de retour */}
       <div className="max-w-7xl w-full mx-auto px-4 sm:px-6 pt-6">
-        <Link to={getBackPath()} className="inline-flex items-center gap-2 text-xs sm:text-sm text-slate-400 hover:text-white transition-colors">
+        <Link href={getBackPath()} className="inline-flex items-center gap-2 text-xs sm:text-sm text-slate-400 hover:text-white transition-colors">
           <ArrowLeft size={14} /> Retour au tableau de bord
         </Link>
       </div>

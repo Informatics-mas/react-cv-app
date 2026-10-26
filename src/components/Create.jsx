@@ -1,5 +1,8 @@
+"use client";
+
 import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useReactToPrint } from 'react-to-print';
 import Swal from 'sweetalert2';
 import { isFreePlan } from '../constants';
@@ -46,8 +49,8 @@ const TEMPLATES_MAP = {
 };
 
 function Create() {
-  const navigate = useNavigate();
-  const location = useLocation();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const componentRef = useRef(null); 
   const fileInputRef = useRef(null);
   
@@ -64,6 +67,7 @@ function Create() {
     const syncEntitlements = async () => {
       try {
         const response = await fetch(`${API_BASE_URL}/auth/me`, {
+          credentials: "include",
           headers: { Authorization: `Bearer ${token}` }
         });
         if (!response.ok) return; // valeurs affichées conservées ; le quota réel reste vérifié au serveur
@@ -82,9 +86,10 @@ function Create() {
   }, []);
 
   const [cvData, setCvData] = useState(() => {
-     // Le template choisi sur /Models arrive via location.state (nouveau montage du composant)
-     const templateFromUrl = location.state?.selectedTemplate
-       || new URLSearchParams(window.location.search).get('template');
+     // Le template choisi sur /models arrive via le paramètre d'URL ?template=...
+     // (canal de lecture prévu par app/create/page.jsx). La casse des identifiants
+     // est préservée telle quelle (ex. 'classic' ≠ 'Classic').
+     const templateFromUrl = searchParams.get('template');
      const saved = localStorage.getItem('cv_data_pro');
      
      if (saved) {
@@ -104,13 +109,6 @@ function Create() {
      };
   });
 
-  // Efface le state de navigation une fois le template pris en compte par l'initialiseur ci-dessus
-  useEffect(() => {
-    if (location.state?.selectedTemplate) {
-      navigate(location.pathname, { replace: true, state: {} });
-    }
-  }, [location.state, location.pathname, navigate]);
-
   useEffect(() => {
     localStorage.setItem('cv_data_pro', JSON.stringify(cvData));
   }, [cvData]);
@@ -129,7 +127,7 @@ function Create() {
         cancelButtonText: 'Plus tard',
         background: '#1e293b',
         color: '#fff'
-      }).then((res) => { if (res.isConfirmed) navigate('/plans'); });
+      }).then((res) => { if (res.isConfirmed) router.push('/plans'); });
       return;
     }
     fileInputRef.current.click();
@@ -157,6 +155,7 @@ function Create() {
         const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
         const res = await fetch(`${API_BASE_URL}/parse-cv`, {
           method: "POST",
+          credentials: "include",
           headers: token ? { Authorization: `Bearer ${token}` } : {},
           body: formData
         });
@@ -251,15 +250,15 @@ function Create() {
   const isLimitReached = downloadCount >= allowedLimit;
 
   const handleDownloadClick = async () => {
-    const token = localStorage.getItem('adminToken') || localStorage.getItem('token');
-    if (!token) return Swal.fire({ title: 'Connexion requise', text: 'Vous devez être connecté pour télécharger.', icon: 'warning', background: '#1e293b', color: '#fff' });
+    // Session = cookie httpOnly (contrat backend Phase 3b) : aucun token
+    // localStorage n'est requis — la réponse serveur fait foi (401 géré plus bas).
 
     // Optimisation UI : si le quota affiché est déjà atteint, inutile d'appeler le serveur
     if (isLimitReached) {
       Swal.fire({
         title: 'Limite atteinte', text: `Passez à un plan supérieur pour continuer.`,
         icon: 'info', confirmButtonText: 'Voir les offres', background: '#1e293b', color: '#fff', confirmButtonColor: '#3b82f6'
-      }).then((res) => { if (res.isConfirmed) navigate('/plans'); });
+      }).then((res) => { if (res.isConfirmed) router.push('/plans'); });
       return;
     }
 
@@ -268,7 +267,7 @@ function Create() {
       // Le serveur reste la source de vérité : le client ne peut pas forcer le compteur.
       const res = await fetch(`${API_BASE_URL}/downloads/authorize`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` }
+        credentials: "include"
       });
       const body = await res.json().catch(() => ({}));
 
@@ -281,7 +280,7 @@ function Create() {
           return Swal.fire({
             title: 'Limite atteinte', text: body.message || 'Votre quota de téléchargement est atteint.',
             icon: 'info', confirmButtonText: 'Voir les offres', background: '#1e293b', color: '#fff', confirmButtonColor: '#3b82f6'
-          }).then((res) => { if (res.isConfirmed) navigate('/plans'); });
+          }).then((res) => { if (res.isConfirmed) router.push('/plans'); });
         }
         throw new Error(body.message || 'Le serveur a refusé le téléchargement.');
       }
@@ -331,7 +330,7 @@ function Create() {
         
         {/* Header Fixe */}
         <div className="sticky top-0 z-20 bg-[#1e293b]/95 backdrop-blur-sm border-b border-slate-700/50 p-4 sm:p-6 flex items-center justify-between">
-          <Link to={localStorage.getItem('token') ? '/Home' : '/'} className="text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium">
+          <Link href={typeof window !== 'undefined' && localStorage.getItem('userRole') ? '/home' : '/'} className="text-slate-400 hover:text-white transition-colors flex items-center gap-2 text-sm font-medium">
             <ArrowLeft size={16} /> Retour
           </Link>
           <button 
@@ -366,7 +365,7 @@ function Create() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <Link to="/Models" className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all border border-slate-700">
+              <Link href="/Models" className="flex items-center justify-center gap-2 bg-slate-800 hover:bg-slate-700 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all border border-slate-700">
                 Changer de modèle
               </Link>
               <button type="button" onClick={handleImportClick} className="flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-500 text-white py-3 rounded-xl font-bold text-xs uppercase tracking-wider transition-all shadow-lg shadow-blue-600/20">
@@ -414,7 +413,7 @@ function Create() {
           </div>
           
           {isLimitReached ? (
-            <Link to="/plans" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg animate-pulse">
+            <Link href="/plans" className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-xl font-bold text-sm transition-all shadow-lg animate-pulse">
               <Zap size={16} fill="currentColor" /> Passer Premium
             </Link>
           ) : (

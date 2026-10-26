@@ -11,14 +11,14 @@
  */
 /**
  * Source UNIQUE de l'URL de l'API : aucun autre fichier du front ne doit
- * référencer import.meta.env.VITE_API_URL directement.
+ * référencer process.env.NEXT_PUBLIC_API_URL directement.
  * Fallback localhost = développement uniquement ; en production, définir
- * VITE_API_URL (ex : https://ton-backend-domaine.com/api) dans Vercel.
+ * NEXT_PUBLIC_API_URL (ex : https://ton-backend-domaine.com/api) dans Vercel.
  * NB : l'URL contient déjà le préfixe /api — les appels utilisent donc
  * des chemins comme "/auth/me" (jamais "/api/auth/me").
  */
 export const API_BASE_URL =
-  import.meta.env.VITE_API_URL || "http://localhost:5000/api";
+  process.env.NEXT_PUBLIC_API_URL || "http://localhost:5000/api";
 
 const BASE_URL = API_BASE_URL;
 
@@ -68,7 +68,10 @@ async function request(path, { method = "GET", body, headers = {}, auth = true, 
     res = await fetch(`${BASE_URL}${path}`, {
       method,
       headers: finalHeaders,
-      body: payload
+      body: payload,
+      // Auth par cookie httpOnly (contrat backend Phase 3b) : transmet et
+      // reçoit les cookies cross-origin (CORS credentials:true côté serveur).
+      credentials: "include"
     });
   } catch {
     // Erreur réseau : jamais de texte technique pour l'utilisateur

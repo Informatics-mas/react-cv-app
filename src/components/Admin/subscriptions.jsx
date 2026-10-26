@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState, useCallback } from "react";
 import Swal from "sweetalert2";
 import { 
@@ -27,6 +29,7 @@ export default function SubscriptionManager() {
   const fetchSubscriptions = useCallback(async () => {
     try {
       const res = await fetch(API_URL, {
+        credentials: "include",
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -90,6 +93,7 @@ export default function SubscriptionManager() {
   const sendUpdate = async (id, payload) => {
     const res = await fetch(`${API_URL}/${id}`, {
       method: "PUT",
+      credentials: "include",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`

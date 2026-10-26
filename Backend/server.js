@@ -1,9 +1,9 @@
-import dotenv from "dotenv";
+import "./loadEnv.js"; // DOIT rester le premier import : charge Backend/.env avant db/
 import express from "express";
-import mongoose from "mongoose";
 import multer from "multer";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import cors from "cors";
+import cookieParser from "cookie-parser";
 import path from 'path';
 import { fileURLToPath } from 'url';
 import cron from 'node-cron';
@@ -13,13 +13,13 @@ import rateLimit from "express-rate-limit";
 import process from "node:process";
 
 // --- IMPORTS DES MODÈLES ---
-import User from './Models/user.js'; 
-import Subscription from './Models/subscriptions.js';
+import { db } from './db/index.js';
+import pool, { ping } from './db/pool.js';
 
 // --- IMPORTS DES SERVICES ---
 import { sendExpirationWarningEmail } from './utils/emailService.js';
 import { getEffectiveEntitlements } from './utils/entitlements.js';
-import { SUBSCRIPTION_STATUS, PLAN_NAMES } from './constants.js';
+import { PLAN_NAMES } from './constants.js';
 
 // --- CONFIGURATION DES CHEMINS ---
 const __filename = fileURLToPath(import.meta.url);
@@ -34,12 +34,19 @@ import { responseFormat } from "./Middleware/responseFormat.js";
 import statsRoutes from "./Routes/Stats.js";
 import planRoutes from "./Routes/PlanRoutes.js";
 import downloadRoutes from "./Routes/downloadRoutes.js";
+import paymentMockRoutes from "./Routes/paymentMockRoutes.js";
+import { assertPaymentConfig, isMockActive } from "./services/paymentService.js";
+
+// 0b. Validation stricte de la configuration de paiement (Lot 2G) :
+// une sélection de mock en production lève une erreur explicite et ARRÊTE
+// le démarrage (fail-closed). Absence de prestataire = garde-fou 503 actif.
+assertPaymentConfig();
 
 // 1. Initialisation de Express
 const app = express();
 
 // 2. Chargement du .env
-dotenv.config({ path: path.join(__dirname, '.env') });
+// (environnement chargé par loadEnv.js en tête de fichier)
 
 // --- SÉCURITÉ : JWT_SECRET OBLIGATOIRE ---
 // Le serveur refuse de démarrer sans secret : jamais de fallback faible.
@@ -82,9 +89,11 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false
 }));
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:5173",
+  origin: process.env.FRONTEND_URL || "http://localhost:3000",
   credentials: true
 }));
+// Phase 3b : lecture du cookie d'authentification httpOnly (req.cookies.token)
+app.use(cookieParser());
 app.use(express.json({ limit: "2mb" })); 
 app.use(express.urlencoded({ extended: true, limit: "2mb" }));
 // Convention de réponse : { success, data?, message?, code? } (voir Middleware/responseFormat.js)
@@ -93,19 +102,31 @@ app.use(responseFormat);
 // --- CONFIGURATION GEMINI ---
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY || "");
 
-// --- CONNEXION MONGODB ---
+// --- CONNEXION BASE DE DONNÉES (PostgreSQL / Neon — UNIQUE) ---
 const connectDB = async () => {
-  try {  
-    const uri = process.env.MONGO_URI;
-    await mongoose.connect(uri, {
-      serverSelectionTimeoutMS: 5000
-    });
-    console.log("MongoDB connecté avec succès ✅");
+  try {
+    await ping();
+    console.log("PostgreSQL (Neon) connecté avec succès ✅");
   } catch (err) {
-    console.error("Erreur de connexion MongoDB ❌ :", err.message);
+    console.error("Erreur de connexion PostgreSQL ❌ :", err.message);
+    throw err; // Lot 2G.15A : jamais de démarrage silencieusement dégradé
   }
 };
-connectDB();
+// Lot 2G.15A — fail-fast : la connexion PostgreSQL obligatoire doit être
+// établie AVANT l'écoute HTTP (aucun démarrage silencieusement dégradé, aucune
+// déclaration de disponibilité trompeuse). En cas d'échec : fermeture PROPRE du
+// pool déjà initialisé, puis sortie explicite non nulle — à ce stade aucune
+// ressource HTTP n'est ouverte et aucune requête n'est en vol (sortie sûre).
+try {
+  await connectDB();
+} catch (err) {
+  console.error(
+    "❌ DÉMARRAGE ARRÊTÉ : la base PostgreSQL obligatoire est indisponible — le serveur HTTP ne sera pas démarré."
+  );
+  await pool.end().catch(() => {});
+  console.log("Pool PostgreSQL fermé proprement ✅");
+  process.exit(1);
+}
 
 // ========================================================
 // --- BRANCHEMENT ET REGROUPEMENT DE TOUTES LES ROUTES API ---
@@ -114,6 +135,11 @@ connectDB();
 app.use("/api/auth", authRoutes);
 app.use("/api/users", userRoutes);
 app.use("/api/subscriptions", subscriptionRoutes);
+// Lot 2G : routes du mock de paiement MONTÉES UNIQUEMENT si le mock est
+// légalement actif (double signal test). En production : route inexistante (404).
+if (isMockActive()) {
+  app.use("/api/payments/mock", paymentMockRoutes);
+}
 app.use("/api/stats", statsRoutes);
 app.use("/api/plans", planRoutes);
 app.use("/api/downloads", downloadRoutes);
@@ -272,13 +298,10 @@ cron.schedule('0 1 * * *', async () => {
     targetDateEnd.setDate(today.getDate() + 7);
     targetDateEnd.setHours(23, 59, 59, 999);
 
-    const subscriptionsToWarn = await Subscription.find({
-      endDate: {
-        $gte: targetDateStart,
-        $lte: targetDateEnd
-      },
-      status: SUBSCRIPTION_STATUS.ACTIVE
-    }).populate("userId").populate("planId");
+    const subscriptionsToWarn = await db.subscriptions.findExpiringPopulated(
+      targetDateStart,
+      targetDateEnd
+    );
 
     console.log(`✉️ ${subscriptionsToWarn.length} abonnement(s) expire(nt) dans 7 jours.`);
 
@@ -303,8 +326,51 @@ app.use((req, res) => {
   res.status(404).json({ message: "Route introuvable sur le serveur API." });
 });
 
+// Phase 5I (Audit H) : gestionnaire d'erreurs global — les erreurs de parsing
+// JSON (body-parser) et autres exceptions Express renvoient désormais un JSON
+// SANS stack trace ni chemin serveur (le handler par défaut d'Express exposait
+// les fichiers en clair — fuite d'informations confirmée).
+app.use((err, req, res, next) => {
+  if (res.headersSent) return next(err);
+  const status = err.status || err.statusCode || 500;
+  if (status >= 500) {
+    console.error("❌ Erreur serveur non gérée :", err.code || "", err.message);
+  }
+  const message =
+    err.type === "entity.parse.failed"
+      ? "Corps de requête JSON invalide."
+      : err.type === "entity.too.large"
+        ? "Corps de requête trop volumineux."
+        : status >= 500
+          ? "Erreur interne du serveur."
+          : err.message || "Requête invalide.";
+  res.status(status >= 400 ? status : 500).json({ success: false, message });
+});
+
 // --- DEMARRAGE DU SERVEUR ---
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Le serveur tourne sur le port ${PORT} 🚀`);
 });
+
+// Phase 5H (Étape F T7) — fermeture propre : SIGTERM/SIGINT ferment d'abord le
+// serveur HTTP (les requêtes en cours se terminent), puis le pool PostgreSQL
+// (connexions rendues au pool de connexions Neon). Filet de sécurité : sortie
+// forcée après 10 s si une connexion traîne. Aucun secret loggé.
+const shutdown = (signal) => {
+  console.log(`${signal} reçu : fermeture en cours...`);
+  server.close(() => {
+    pool.end()
+      .then(() => {
+        console.log("Pool PostgreSQL fermé proprement ✅");
+        process.exit(0);
+      })
+      .catch((err) => {
+        console.error("Erreur à la fermeture du pool :", err.code || "", err.message);
+        process.exit(1);
+      });
+  });
+  setTimeout(() => process.exit(1), 10_000).unref();
+};
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));

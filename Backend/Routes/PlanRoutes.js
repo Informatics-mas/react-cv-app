@@ -1,5 +1,5 @@
 import express from "express";
-import Plans from "../Models/plans.js";
+import { db } from "../db/index.js";
 import { protect, adminOnly } from "../Middleware/AuthMiddleware.js";
 import { z } from "zod";
 
@@ -17,7 +17,7 @@ const planSchema = z.object({
 
 router.get("/", async (req, res) => {
   try {
-    const plans = await Plans.find().sort({ price: 1 }).limit(20);
+    const plans = await db.plans.list();
     res.status(200).json(plans);
   } catch {
     res.status(500).json({ message: "Erreur lors de la récupération des plans" });
@@ -31,8 +31,7 @@ router.post("/", protect, adminOnly, async (req, res) => {
       return res.status(400).json({ message: "Données invalides", errors: validation.error.issues.map(issue => issue.message) });
     }
     
-    const newPlan = new Plans(validation.data); 
-    const savedPlan = await newPlan.save();
+    const savedPlan = await db.plans.create(validation.data);
     res.status(201).json({
         _id: savedPlan._id,
         name: savedPlan.name,
@@ -52,19 +51,37 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
       return res.status(400).json({ message: "Données invalides", errors: validation.error.issues.map(issue => issue.message) });
     }
 
-    const updatedPlan = await Plans.findByIdAndUpdate(req.params.id, { $set: validation.data }, { new: true });
+    const updatedPlan = await db.plans.update(req.params.id, validation.data);
     if (!updatedPlan) return res.status(404).json({ message: "Plan introuvable." });
     res.status(200).json(updatedPlan);
-  } catch {
+  } catch (err) {
+    // Ne pas masquer la cause : distinguer l'indisponibilité DB/réseau (503)
+    // d'une erreur de requête (400) — message identique pour l'utilisateur,
+    // détail technique journalisé sans secret.
+    console.error("❌ PUT /plans/:id :", err?.code || "", err?.message || err);
+    if (err?.code && ["ETIMEDOUT", "ECONNREFUSED", "ECONNRESET", "ENETUNREACH", "EPIPE", "57P03"].includes(err.code)) {
+      return res.status(503).json({ message: "Base de données indisponible : la mise à jour du plan n'a pas été appliquée. Réessayez." });
+    }
     res.status(400).json({ message: "Erreur lors de la mise à jour du plan" });
   }
 });
 
 router.delete("/:id", protect, adminOnly, async (req, res) => {
   try {
-    const deletedPlan = await Plans.findByIdAndDelete(req.params.id);
-    if (!deletedPlan) return res.status(404).json({ message: "Plan introuvable." });
-    res.status(200).json({ message: "Plan supprimé !" });
+    const result = await db.plans.deleteById(req.params.id);
+    if (result.ok) {
+      return res.status(200).json({ message: "Plan supprimé !" });
+    }
+    if (result.reason === "has_subscriptions") {
+      // Lot 2G.1 : refus métier explicite — un plan référencé par des
+      // abonnements n'est jamais supprimé (historique préservé, aucune cascade).
+      return res.status(409).json({
+        code: "PLAN_HAS_SUBSCRIPTIONS",
+        message:
+          "Suppression refusée : ce plan est encore référencé par des abonnements.",
+      });
+    }
+    return res.status(404).json({ message: "Plan introuvable." });
   } catch {
     res.status(500).json({ message: "Erreur lors de la suppression du plan" });
   }

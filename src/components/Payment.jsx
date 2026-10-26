@@ -1,5 +1,8 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate, Link } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   ShieldCheck, 
   CreditCard, 
@@ -17,11 +20,14 @@ import Swal from 'sweetalert2';
 import { API_BASE_URL } from '../api/client';
 
 export default function Payment() {
-  const location = useLocation();
-  const navigate = useNavigate();
+  const router = useRouter();
+  const searchParams = useSearchParams();
   
-  // Récupération du plan sélectionné passé via le state de react-router
-  const { plan } = location.state || {};
+  // Récupération du plan sélectionné passé en paramètre de requête (?planId=...).
+  // L'objet plan complet est rechargé depuis l'API publique /plans (même source
+  // que la page des tarifs) afin de ne jamais fabriquer de données de paiement.
+  const planId = searchParams.get('planId');
+  const [plan, setPlan] = useState(null);
   
   const [paymentMethod, setPaymentMethod] = useState('card'); // 'card' ou 'mobile'
   const [loading, setLoading] = useState(false);
@@ -37,7 +43,7 @@ export default function Payment() {
 
   // Sécurité : Si aucun plan n'est sélectionné, on redirige vers les tarifs
   useEffect(() => {
-    if (!plan) {
+    const redirectToPlans = () => {
       Swal.fire({
         title: 'Aucun plan sélectionné',
         text: 'Veuillez choisir un plan d\'abonnement avant de procéder au paiement.',
@@ -46,9 +52,38 @@ export default function Payment() {
         background: '#1e293b',
         color: '#fff'
       });
-      navigate('/plans');
+      router.push('/plans');
+    };
+
+    if (!planId) {
+      redirectToPlans();
+      return;
     }
-  }, [plan, navigate]);
+
+    let cancelled = false;
+    fetch(`${API_BASE_URL}/plans`, { credentials: "include" })
+      .then((response) => {
+        if (!response.ok) throw new Error('Impossible de récupérer le plan');
+        return response.json();
+      })
+      .then((body) => {
+        if (cancelled) return;
+        const selected = (body.data || []).find((p) => p._id === planId);
+        if (selected) {
+          setPlan(selected);
+        } else {
+          redirectToPlans();
+        }
+      })
+      .catch(() => {
+        if (!cancelled) return;
+        redirectToPlans();
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [planId, router]);
 
   if (!plan) return null;
 
@@ -67,6 +102,7 @@ export default function Payment() {
 
       // Appel à ton API Backend pour enregistrer la souscription
       const response = await fetch(`${API_BASE_URL}/subscriptions/subscribe`, {
+        credentials: "include",
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -100,7 +136,7 @@ export default function Payment() {
       });
 
       // Redirection vers l'espace utilisateur
-      navigate(localStorage.getItem('token') ? '/Home' : '/login');
+      router.push(localStorage.getItem('userRole') ? '/home' : '/login');
 
     } catch (error) {
       console.error("Erreur Paiement:", error);
@@ -121,7 +157,7 @@ export default function Payment() {
     <div className="min-h-full bg-[#0f172a] text-white font-sans flex flex-col antialiased">
       {/* Barre de fil d'Ariane / Retour */}
       <div className="max-w-5xl w-full mx-auto px-6 pt-6">
-        <Link to="/plans" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors">
+        <Link href="/plans" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors">
           <ArrowLeft size={16} /> Retour aux plans
         </Link>
       </div>

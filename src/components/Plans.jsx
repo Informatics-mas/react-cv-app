@@ -1,3 +1,5 @@
+"use client";
+
 import React, { useState, useEffect } from 'react';
 import { 
   Check, 
@@ -14,12 +16,13 @@ import {
   LayoutTemplate
 } from 'lucide-react';
 import Swal from 'sweetalert2';
-import { Link, useNavigate } from 'react-router-dom';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useAuth } from '../context/useAuth';
 import { API_BASE_URL } from '../api/client';
 
 const PlanCards = () => {
-  const navigate = useNavigate();
+  const router = useRouter();
   const [plans, setPlans] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -27,13 +30,13 @@ const PlanCards = () => {
   // Plan actuel = valeur renvoyée par le serveur via AuthProvider (un seul /auth/me)
   const { user } = useAuth();
   const currentPlan = user?.user_plan || null;
-  const isAuthenticated = Boolean(localStorage.getItem('token') || localStorage.getItem('adminToken'));
+  const isAuthenticated = typeof window !== 'undefined' && Boolean(localStorage.getItem('userRole'));
 
   useEffect(() => {
     // Récupération des plans d'abonnement disponibles (source : base via l'API)
     const fetchPlans = async () => {
       try {
-        const response = await fetch(`${API_BASE_URL}/plans`);
+        const response = await fetch(`${API_BASE_URL}/plans`, { credentials: "include" });
         if (!response.ok) throw new Error("Impossible de récupérer les plans");
         const body = await response.json();
         setPlans(body.data);
@@ -51,7 +54,7 @@ const PlanCards = () => {
   const handleSelectPlan = (plan) => {
     // Non connecté : le serveur refuse de toute façon (protect) → on affiche le login
     if (!isAuthenticated) {
-      navigate('/login');
+      router.push('/login');
       return;
     }
     // Déjà sur ce plan : pas d'action (bouton désactivé)
@@ -71,7 +74,9 @@ const PlanCards = () => {
         color: '#fff'
       }).then((result) => {
         if (result.isConfirmed) {
-          navigate('/payment', { state: { plan } });
+          // Passage du plan à la page paiement via le paramètre d'URL (?planId=...),
+          // mécanisme App Router équivalent du state de navigation.
+          router.push(`/payment?planId=${encodeURIComponent(plan._id)}`);
         }
       });
       return;
@@ -94,6 +99,7 @@ const PlanCards = () => {
           const token = localStorage.getItem('token') || localStorage.getItem('adminToken');
           
           const response = await fetch(`${API_BASE_URL}/subscriptions/subscribe`, {
+            credentials: "include",
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
@@ -124,7 +130,7 @@ const PlanCards = () => {
             confirmButtonColor: '#3b82f6'
           });
         
-          navigate(localStorage.getItem('token') ? '/Home' : '/login');
+          router.push(localStorage.getItem('userRole') ? '/home' : '/login');
         
         } catch (error) {
           console.error("Erreur plan gratuit :", error);
@@ -141,8 +147,11 @@ const PlanCards = () => {
   };
 
   const getBackPath = () => {
-    if (localStorage.getItem('token')) return '/Home';
-    if (localStorage.getItem('adminToken')) return '/Admin'; 
+    if (typeof window === 'undefined') return '/';
+    // Indicateur UI (cache userRole) — l'autorité reste le middleware/backend.
+    const role = (localStorage.getItem('userRole') || '').toLowerCase();
+    if (role === 'admin') return '/admin';
+    if (role) return '/home'; 
     return '/'; 
   };
 
@@ -199,7 +208,7 @@ const PlanCards = () => {
     <div className="flex flex-col items-center justify-center min-h-full bg-[#0f172a] text-slate-400">
       <AlertTriangle size={48} className="text-amber-500 mb-4" />
       <p>{error}</p>
-      <Link to={getBackPath()} className="mt-4 text-blue-500 hover:underline">Retour</Link>
+      <Link href={getBackPath()} className="mt-4 text-blue-500 hover:underline">Retour</Link>
     </div>
   );
 

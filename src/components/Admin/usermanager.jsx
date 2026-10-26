@@ -1,3 +1,5 @@
+"use client";
+
 import { useEffect, useState, useCallback } from "react";
 import { 
   User as UserIcon, 
@@ -20,29 +22,26 @@ export default function UserManager() {
   const [searchTerm, setSearchTerm] = useState("");
 
   const API_URL = `${API_BASE_URL}/users`;
-  const token = localStorage.getItem("token");
 
   const fetchUsers = useCallback(async () => {
-    // On récupère le token ici, juste avant l'appel
-    const currentToken = localStorage.getItem("token");
-
-    if (!currentToken) {
-      setError("Session expirée. Veuillez vous reconnecter.");
-      setLoading(false);
-      return;
-    }
+    // Session = cookie httpOnly (contrat backend Phase 3b) : la requête est
+    // TOUJOURS tentée avec credentials — un ancien token localStorage n'est
+    // jamais une preuve de session (la réponse serveur fait foi).
 
     try {
       setLoading(true);
       const res = await fetch(API_URL, {
+        credentials: "include",
         headers: { 
-          "Authorization": `Bearer ${currentToken}`,
           "Content-Type": "application/json"
         },
       });
 
       if (res.status === 401) {
         throw new Error("401");
+      }
+      if (res.status === 403) {
+        throw new Error("403");
       }
 
       if (!res.ok) throw new Error(`Erreur ${res.status}`);
@@ -52,10 +51,17 @@ export default function UserManager() {
     } catch (err) {
       console.error("Erreur de chargement des utilisateurs:", err);
       if (err.message === "401") {
+        // 401 CONFIRMÉ par le serveur = session réellement invalide.
         setError("Votre session a expiré (401).");
         localStorage.removeItem("token");
         localStorage.removeItem("userRole");
         window.location.href = "/login";
+      } else if (err.message === "403") {
+        // 403 = refus d'autorisation (rôle) — PAS une session expirée.
+        setError("Accès refusé (403) : rôle administrateur requis.");
+      } else if (err instanceof TypeError) {
+        // Échec réseau/fetch : jamais présenté comme une session expirée.
+        setError("Serveur injoignable : la liste des utilisateurs n'a pas pu être chargée.");
       } else {
         setError("Impossible de charger la liste des utilisateurs.");
       }
@@ -75,14 +81,25 @@ export default function UserManager() {
     try {
       const res = await fetch(`${API_URL}/${userId}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: "include",
       });
 
+      if (res.status === 401) throw new Error("401");
+      if (res.status === 403) throw new Error("403");
       if (!res.ok) throw new Error("Erreur lors de la suppression");
 
       setUsers((prev) => prev.filter((user) => user._id !== userId));
-    } catch {
-      alert("Erreur technique lors de la suppression.");
+    } catch (err) {
+      if (err.message === "401") {
+        alert("Votre session a expiré (401).");
+        window.location.href = "/login";
+      } else if (err.message === "403") {
+        alert("Accès refusé (403) : rôle administrateur requis.");
+      } else if (err instanceof TypeError) {
+        alert("Serveur injoignable : suppression non effectuée.");
+      } else {
+        alert("Erreur technique lors de la suppression.");
+      }
     }
   };
 

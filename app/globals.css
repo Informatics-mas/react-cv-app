@@ -1,0 +1,8 @@
+@import "tailwindcss";
+
+.cv-template-root {
+  display: flex;
+  width: 100%; /* ou 210mm */
+  min-height: 297mm;
+  background-color: white;
+}

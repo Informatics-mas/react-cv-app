@@ -1,0 +1,52 @@
+# CI minimale (Lot 5A) — qualité statique + tests backend.
+# - Aucun secret requis (tests backend = env injecté en mémoire, 0 base, 0 réseau).
+# - Aucun accès à Neon/GeniusPay, aucune migration, aucun déploiement.
+# Durcissement Lot 5C : permissions minimales, timeout, concurrence par référence.
+name: ci
+
+on:
+  push:
+  pull_request:
+
+# CI-01 : le jeton GitHub n'a que le droit de lecture du dépôt.
+permissions:
+  contents: read
+
+# CI-03 : une nouvelle exécution annule uniquement les exécutions
+# PRÉCÉDENTES du même workflow sur la MÊME référence (jamais une autre branche).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    # CI-02 : plafond de durée (mesures locales : lint/tests/build < 2 min au
+    # total ; installation comprise, 15 min restent très confortables).
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            Backend/package-lock.json
+
+      # Frontend Next.js : lint + build (aucune variable requise — fallback local)
+      - name: Install frontend
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Build
+        run: npm run build
+
+      # Backend : 36 tests unitaires (purs, sans base — env injecté)
+      - name: Install backend
+        run: npm ci
+        working-directory: Backend
+      - name: Backend unit tests
+        run: node --test tests/*.test.mjs
+        working-directory: Backend

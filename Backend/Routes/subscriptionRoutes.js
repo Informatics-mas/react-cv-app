@@ -1,16 +1,19 @@
 import express from "express";
-import Subscription from "../Models/subscriptions.js";
-import Plans from "../Models/plans.js"; 
-import User from "../Models/user.js"; 
+import { db } from "../db/index.js";
+import { isObjectId, isUuid } from "../db/mappers.js";
 import { sendPlanConfirmationEmail } from '../utils/emailService.js'; 
 import { protect, adminOnly } from "../Middleware/AuthMiddleware.js";
 import { z } from "zod"
 import { SUBSCRIPTION_STATUS } from "../constants.js";
+import { isMockActive, initiatePaidSubscription } from "../services/paymentService.js";
 
 const router = express.Router();
 
 const subscribeSchema = z.object({
-  planId: z.string().length(24, "L'ID du plan doit être un ObjectId valide"),
+  // ObjectId (24) OU UUID PostgreSQL (36) — période de transition
+  planId: z.string().refine((v) => isObjectId(v) || isUuid(v), {
+    message: "L'ID du plan doit être un identifiant valide"
+  }),
   paymentMethod: z.string().optional(),
   details: z.any().optional()
 });
@@ -26,13 +29,13 @@ const updateSubSchema = z.object({
 
 router.get("/", protect, adminOnly, async (req, res) => {
   try {
-    const limit = parseInt(req.query.limit) || 100;
+    // Phase 5I : pagination bornée [1..500] (idem userRoutes).
+    const parsed = parseInt(req.query.limit, 10);
+    const limit = Number.isFinite(parsed) ? Math.min(Math.max(parsed, 1), 500) : 100;
 
-    const subscriptions = await Subscription.find({})
-      .populate("userId", "name email") 
-      .populate("planId", "name price") 
-      .sort({ createdAt: -1 })
-      .limit(limit); // Application de la limite
+    // populate("userId","name email") + populate("planId","name price") Mongo
+    // remplacés par des JOIN SQL (mode postgres) — forme JSON identique.
+    const subscriptions = await db.subscriptions.listPopulated({ limit });
       
     res.json(subscriptions);
   } catch {
@@ -45,14 +48,9 @@ router.put("/:id", protect, adminOnly, async (req, res) => {
     const validation = updateSubSchema.safeParse(req.body);
     if (!validation.success) return res.status(400).json({ message: "Données invalides" });
     const { status, endDate, autoRenew } = req.body;
-    const subscription = await Subscription.findById(req.params.id);
 
-    if (subscription) {
-      subscription.status = status || subscription.status;
-      subscription.endDate = endDate || subscription.endDate;
-      subscription.autoRenew = autoRenew !== undefined ? autoRenew : subscription.autoRenew;
-
-      const updatedSub = await subscription.save();
+    const updatedSub = await db.subscriptions.updateFields(req.params.id, { status, endDate, autoRenew });
+    if (updatedSub) {
       res.json(updatedSub);
     } else {
       res.status(404).json({ message: "Abonnement non trouvé" });
@@ -78,59 +76,73 @@ router.post("/subscribe", protect, async (req, res) => {
     if (!validation.success) {
       return res.status(400).json({ message: "Données invalides", errors: validation.error.issues.map(issue => issue.message) });
     }
-    const { planId } = validation.data;
-    
+    const { planId, paymentMethod, details } = validation.data;
+
     const userIdStr = req.user.id || req.user._id; 
 
     if (!userIdStr) {
       return res.status(400).json({ message: "Identifiant de l'utilisateur manquant ou invalide." });
     }
 
-    const mongoose = await import("mongoose");
-    const userId = new mongoose.Types.ObjectId(userIdStr);
-
-    const user = await User.findById(userId);
+    const user = await db.users.findByIdentifier(userIdStr);
     if (!user) {
       return res.status(404).json({ message: "Utilisateur introuvable." });
     }
 
-    const planDef = await Plans.findById(planId);
+    const planDef = await db.plans.findByIdentifier(planId);
     if (!planDef) {
       return res.status(404).json({ message: "Plan introuvable." });
+    }
+
+    // Phase 5J-B : sans prestataire de paiement opérationnel (GeniusPay non
+    // intégré), aucune souscription PAYANTE n'est activée — une redirection
+    // navigateur ne constitue pas une preuve de paiement. Aucune écriture
+    // n'est effectuée : ni abonnement, ni paiement fictif, ni quota touché.
+    // Le parcours gratuit (price = 0) reste inchangé ; les abonnements
+    // historiques ne sont ni supprimés ni rétrogradés.
+    if (Number(planDef.price) > 0) {
+      // Lot 2G : parcours de TEST possible si le mock de paiement est
+      // légalement actif (jamais en production — validation fail-closed).
+      // Création d'une intention « pending » sans AUCUN droit ; l'activation
+      // n'a lieu qu'après confirmation idempotente (paymentService).
+      if (isMockActive()) {
+        const initiated = await initiatePaidSubscription({
+          user, plan: planDef, paymentMethod, details,
+        });
+        return res.status(202).json({
+          success: true,
+          code: "PAYMENT_MOCK_PENDING",
+          mock: true,
+          notice: "MODE TEST — AUCUN PAIEMENT RÉEL N'A ÉTÉ EFFECTUÉ",
+          reference: initiated.reference,
+          intent: initiated.intent,
+        });
+      }
+      return res.status(503).json({
+        success: false,
+        code: "PAYMENT_PROVIDER_UNAVAILABLE",
+        message: "Le paiement est temporairement indisponible : les plans payants ne peuvent pas être activés pour le moment. Le plan gratuit reste disponible."
+      });
     }
 
     const startDate = new Date();
     const endDate = new Date();
     endDate.setDate(startDate.getDate() + planDef.duree);
 
-    try {
-      await Subscription.updateMany(
-        { userId: userId, status: SUBSCRIPTION_STATUS.ACTIVE },
-        { $set: { status: SUBSCRIPTION_STATUS.EXPIRED } }
-      );
-    } catch (updateError) {
-      console.warn("⚠️ Attention : Impossible de mettre à jour les anciens plans :", updateError.message);
-    }
-
-    const newSubscription = new Subscription({
-      userId,
-      planId,
+    // Écritures déléguées au store (mode dual) :
+    // - postgres : transaction SQL (expire actifs → subscription → payment/transaction
+    //   pour plans payants → mise à jour profil → COMMIT/ROLLBACK) ;
+    // - mongo : flux historique inchangé (non transactionnel).
+    const newSubscription = await db.subscriptions.subscribe({
+      user,
+      plan: planDef,
       startDate,
       endDate,
-      status: SUBSCRIPTION_STATUS.ACTIVE,
-      autoRenew: false
-    });
-    await newSubscription.save();
-
-   await User.findByIdAndUpdate(userId, {
-      $set: {
-        user_plan: planDef.name, 
-        user_max_downloads: planDef.maxDownloads ?? 5,
-        downloadsUsed: 0 // chaque activation de plan redonne le quota complet du plan
-      }
+      paymentMethod,
+      details
     });
 
-    console.log(`✅ Plan [${planDef.name}] appliqué avec succès au profil de l'user: ${userId}`);
+    console.log(`✅ Plan [${planDef.name}] appliqué avec succès au profil de l'user: ${userIdStr}`);
 
     const emailPlanDetails = {
       name: planDef.name,

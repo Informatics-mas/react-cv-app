@@ -1,5 +1,8 @@
+"use client";
+
 import { useState, useEffect } from "react";
-import { useNavigate, useLocation, Link } from "react-router-dom";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
 // Ajout des icônes Eye et EyeOff
 import { Lock, Mail, Loader2, FileText, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { FaGoogle, FaApple } from 'react-icons/fa';
@@ -8,6 +11,23 @@ import { api } from "../../api/client";
 import { USER_ROLES } from "../../constants";
 import { useAuth } from "../../context/useAuth";
 
+/**
+ * Destination interne sûre après connexion (?from= transmis par les layouts).
+ * - absente ou invalide (URL externe, //, protocole…) → "/Home" (repli d'origine) ;
+ * - jamais de redirection vers une URL fournie par l'utilisateur ;
+ * - pas de boucle : /login et /sign-in sont écartés.
+ */
+function safeInternalFrom() {
+  if (typeof window === "undefined") return "/home";
+  const raw = new URLSearchParams(window.location.search).get("from");
+  if (!raw || !raw.startsWith("/") || raw.startsWith("//") || raw.includes("\\")) {
+    return "/home";
+  }
+  const path = raw.split("?")[0].split("#")[0];
+  if (path === "/login" || path === "/sign-in") return "/home";
+  return raw;
+}
+
 export default function Login() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -15,22 +35,15 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { refresh } = useAuth(); // recharge le profil via AuthProvider
+  const router = useRouter();
+  const { refresh, user: authUser, loading: authLoading } = useAuth(); // recharge le profil via AuthProvider
 
+  // Redirection si une session est DÉJÀ active (cookie httpOnly validé par
+  // /auth/me) — jamais basée sur un ancien token localStorage.
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    const savedRole = localStorage.getItem("userRole"); 
-
-    if (token && savedRole) {
-      if (savedRole.toLowerCase() === "admin") {
-        navigate("/Admin");
-      } else {
-        navigate("/Home");
-      }
-    }
-  }, [navigate]);
+    if (authLoading || !authUser) return;
+    router.push(String(authUser.role).toLowerCase() === "admin" ? "/admin" : "/home");
+  }, [authLoading, authUser, router]);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -40,18 +53,18 @@ export default function Login() {
     try {
       const data = await api.post("/auth/login", { email, password });
 
-      if (data.token) {
+      if (data.user) {
        const storage = window.localStorage;
-        storage.setItem("token", data.token);
-        storage.setItem("userRole", data.user.role); 
+        // JWT = cookie httpOnly (contrat backend Phase 3b) — jamais stocké côté client.
+        storage.setItem("userRole", data.user.role);
         refresh(); //(AuthProvider) : le profil est rechargé pour tout l'app
 
        const isAdmin = String(data.user?.role) === USER_ROLES.ADMIN;
         if (isAdmin) {
-          navigate("/Admin");
+          router.push("/admin");
         } else {
-          const origin = location.state?.from?.pathname || "/Home";
-          navigate(origin);
+          const origin = safeInternalFrom();
+          router.push(origin);
         }
       } else {
         setError("Email ou mot de passe incorrect.");
@@ -67,7 +80,7 @@ export default function Login() {
   return (
     <div className="min-h-full flex flex-col items-center justify-center bg-[#131b2e] bg-[radial-gradient(circle_at_top_right,_var(--tw-gradient-stops))] from-[#1a2e5a] via-[#0B1A3B] to-black p-4">
       
-      <Link to="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium mb-6">
+      <Link href="/" className="text-slate-400 hover:text-white flex items-center gap-2 text-sm font-medium mb-6">
                   <ArrowLeft size={16} />
                   Retour à l'accueil
                 </Link>
@@ -125,7 +138,7 @@ export default function Login() {
                 </button>
               </div>
                <p className="text-slate-500 text-center text-xs mt-6">
-                  Mot de passe oublié ? <Link to="/sign-in" className="text-blue-500 hover:underline">reinitialisez-le</Link>
+                  Mot de passe oublié ? <Link href="/sign-in" className="text-blue-500 hover:underline">reinitialisez-le</Link>
               </p>
             </div>
 
@@ -144,18 +157,18 @@ export default function Login() {
           <div className="text-center mt-8 space-y-4 max-w-sm mx-auto">
                 
           {/*<div className="flex items-center justify-center bg-white rounded-xl shadow-lg border border-slate-200 overflow-hidden">
-                  <Link to="/login" className="flex-1 py-3.5 flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
+                  <Link href="/login" className="flex-1 py-3.5 flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
                     <FaGoogle className="h-5 w-5 text-blue-600" />
                     <span className="text-black font-bold text-sm">Google</span>
                   </Link>
                   <div className="w-[1px] h-6 bg-slate-300"></div>
-                  <Link to="/login" className="flex-1 py-3.5 flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
+                  <Link href="/login" className="flex-1 py-3.5 flex items-center justify-center gap-2 hover:bg-slate-50 transition-all active:scale-95">
                     <FaApple className="h-5 w-5 text-black" />
                     <span className="text-black font-bold text-sm">Apple</span>
                   </Link>
                 </div>*/}
                 <p className="text-slate-500 text-xs mt-6">
-                  Vous n'avez pas de compte ? <Link to="/sign-in" className="text-blue-500 hover:underline">Inscrivez-vous</Link>
+                  Vous n'avez pas de compte ? <Link href="/sign-in" className="text-blue-500 hover:underline">Inscrivez-vous</Link>
                 </p>
             </div>
         </div>

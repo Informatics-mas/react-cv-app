@@ -1,12 +1,12 @@
 import React from 'react';
 import { Users, Target, Code, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import Link from 'next/link';
 
 function About() {
   return (
     <div className="min-h-full bg-[#0f172a] text-white font-sans antialiased py-12 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto">
-        <Link to="/" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors mb-8">
+        <Link href="/" className="inline-flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors mb-8">
           <ArrowLeft size={16} /> Retour à l'accueil
         </Link>
         
